@@ -1,5 +1,5 @@
 pkgname=commit-ai
-pkgver=1.0.0
+pkgver=1.1.0
 pkgrel=1
 pkgdesc="Generate Git commit messages using Gemini with Gitmoji or Conventional Commits"
 arch=('any')

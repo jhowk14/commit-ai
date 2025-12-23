@@ -2,6 +2,7 @@
 set -e
 
 # ================= CONFIG =================
+VERSION="1.1.0"
 MAX_CHARS=14000
 AUTO_YES=false
 PREVIEW_ONLY=false
@@ -9,9 +10,50 @@ UNDO_LAST=false
 EMOJI_MODE=false
 # =========================================
 
+# -------------------------------------------------
+# HELP
+# -------------------------------------------------
+show_help() {
+  cat << EOF
+commit-ai v$VERSION — AI-powered Git commit messages using Gemini
+
+USAGE:
+  commit-ai [OPTIONS]
+
+OPTIONS:
+  -e, --emoji     Use Gitmoji commit format (emoji prefix)
+  -p, --preview   Preview commit message only (no commit)
+  -y, --yes       Skip confirmation prompt (auto-commit)
+  -u, --undo      Undo last commit (soft reset, keeps changes staged)
+  -h, --help      Show this help message
+  -v, --version   Show version number
+
+EXAMPLES:
+  commit-ai              # Conventional Commits format
+  commit-ai -e           # Gitmoji format
+  commit-ai -e -p        # Preview Gitmoji message
+  commit-ai -y           # Auto-commit without confirmation
+  commit-ai -u           # Undo last commit
+
+ENVIRONMENT:
+  GEMINI_API_KEY         Required. Your Google Gemini API key.
+
+MORE INFO:
+  https://github.com/jhowk14/commit-ai
+EOF
+  exit 0
+}
+
+show_version() {
+  echo "commit-ai v$VERSION"
+  exit 0
+}
+
 # Flags
 for arg in "$@"; do
   case $arg in
+    --help|-h) show_help ;;
+    --version|-v) show_version ;;
     --yes|-y) AUTO_YES=true ;;
     --preview|-p) PREVIEW_ONLY=true ;;
     --undo|-u) UNDO_LAST=true ;;
