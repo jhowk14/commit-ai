@@ -1,4 +1,4 @@
-# gitmoji-gemini 🚀✨
+# commit-ai 🚀✨
 
 Generate high-quality Git commit messages automatically using Google Gemini, with support for Gitmoji and Conventional Commits — based only on staged changes.
 
@@ -19,13 +19,13 @@ Generate high-quality Git commit messages automatically using Google Gemini, wit
 ### 🟦 Arch Linux (AUR)
 
 ```bash
-yay -S gitmoji-gemini
+yay -S commit-ai
 ```
 
 or
 
 ```bash
-paru -S gitmoji-gemini
+paru -S commit-ai
 ```
 
 ### 🟨 Manual install (any Linux)
@@ -73,7 +73,7 @@ git add .
 #### Conventional Commits (default)
 
 ```bash
-gitmoji-gemini
+commit-ai
 ```
 
 Example output:
@@ -85,7 +85,7 @@ feat: add support for preview mode
 #### Gitmoji mode
 
 ```bash
-gitmoji-gemini -e
+commit-ai -e
 ```
 
 Example output:
@@ -106,19 +106,19 @@ Example output:
 ### 🔍 Preview only
 
 ```bash
-gitmoji-gemini -e -p
+commit-ai -e -p
 ```
 
 ### ⚡ Auto-commit (no prompt)
 
 ```bash
-gitmoji-gemini -y
+commit-ai -y
 ```
 
 ### ↩️ Undo last commit
 
 ```bash
-gitmoji-gemini -u
+commit-ai -u
 ```
 
 > This keeps your changes staged
