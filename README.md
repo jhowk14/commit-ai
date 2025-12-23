@@ -31,7 +31,7 @@ paru -S gitmoji-gemini
 ### 🟨 Manual install (any Linux)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jhowk14/commit-ai/main/commit-ai.sh \
+curl -fsSL https://raw.githubusercontent.com/jhowk14/commit-ai/master/commit-ai.sh \
   | sudo tee /usr/bin/commit-ai > /dev/null
 
 sudo chmod +x /usr/bin/commit-ai
