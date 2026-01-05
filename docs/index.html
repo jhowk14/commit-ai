@@ -154,6 +154,12 @@
               <span class="generated">feat: add user authentication with OAuth2</span>
             </div>
             <div class="terminal-line">
+              <span class="prompt">$</span> commit-ai -e
+            </div>
+            <div class="terminal-line output">
+              <span class="generated">✨ Add user authentication with OAuth2</span>
+            </div>
+            <div class="terminal-line">
               <span class="prompt">$</span> commit-ai --setup
             </div>
             <div class="terminal-line output">
@@ -176,33 +182,76 @@
 
       <div class="install-content">
         <div class="tab-content active" id="linux">
-          <div class="code-block">
-            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-            <pre><code>git clone https://github.com/jhowk14/commit-ai.git
-cd commit-ai/any-linux
-chmod +x install.sh
-./install.sh</code></pre>
+          <div class="terminal">
+            <div class="terminal-header">
+              <span class="terminal-dot red"></span>
+              <span class="terminal-dot yellow"></span>
+              <span class="terminal-dot green"></span>
+              <span class="terminal-title">bash</span>
+              <button class="copy-btn terminal-copy" onclick="copyTerminal(this)">Copy</button>
+            </div>
+            <div class="terminal-body">
+              <div class="terminal-line">
+                <span class="prompt">$</span> git clone https://github.com/jhowk14/commit-ai.git
+              </div>
+              <div class="terminal-line">
+                <span class="prompt">$</span> cd commit-ai/any-linux
+              </div>
+              <div class="terminal-line">
+                <span class="prompt">$</span> chmod +x install.sh
+              </div>
+              <div class="terminal-line">
+                <span class="prompt">$</span> ./install.sh
+              </div>
+            </div>
           </div>
           <p class="install-note">The installer will guide you through configuration</p>
         </div>
 
         <div class="tab-content" id="aur">
-          <div class="code-block">
-            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-            <pre><code>yay -S commit-ai
-
-# Then run setup
-commit-ai --setup</code></pre>
+          <div class="terminal">
+            <div class="terminal-header">
+              <span class="terminal-dot red"></span>
+              <span class="terminal-dot yellow"></span>
+              <span class="terminal-dot green"></span>
+              <span class="terminal-title">bash</span>
+              <button class="copy-btn terminal-copy" onclick="copyTerminal(this)">Copy</button>
+            </div>
+            <div class="terminal-body">
+              <div class="terminal-line">
+                <span class="prompt">$</span> yay -S commit-ai
+              </div>
+              <div class="terminal-line comment">
+                <span class="comment-text"># Then run setup</span>
+              </div>
+              <div class="terminal-line">
+                <span class="prompt">$</span> commit-ai --setup
+              </div>
+            </div>
           </div>
           <p class="install-note">or use <code>paru -S commit-ai</code></p>
         </div>
 
         <div class="tab-content" id="windows">
-          <div class="code-block">
-            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-            <pre><code class="powershell">git clone https://github.com/jhowk14/commit-ai.git
-cd commit-ai\windows
-.\install.ps1</code></pre>
+          <div class="terminal">
+            <div class="terminal-header">
+              <span class="terminal-dot red"></span>
+              <span class="terminal-dot yellow"></span>
+              <span class="terminal-dot green"></span>
+              <span class="terminal-title">powershell</span>
+              <button class="copy-btn terminal-copy" onclick="copyTerminal(this)">Copy</button>
+            </div>
+            <div class="terminal-body">
+              <div class="terminal-line">
+                <span class="prompt">PS&gt;</span> git clone https://github.com/jhowk14/commit-ai.git
+              </div>
+              <div class="terminal-line">
+                <span class="prompt">PS&gt;</span> cd commit-ai\windows
+              </div>
+              <div class="terminal-line">
+                <span class="prompt">PS&gt;</span> .\install.ps1
+              </div>
+            </div>
           </div>
           <p class="install-note">The installer adds to PATH and runs interactive setup</p>
         </div>
@@ -214,13 +263,34 @@ cd commit-ai\windows
           Run <code>commit-ai --setup</code> anytime to change preferences
         </p>
 
-        <div class="code-block">
-          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-          <pre><code># ~/.commit-ai.conf
-format=gitmoji          # or conventional
-auto_confirm=false      # skip confirmation
-provider=gemini         # or openai
-model=gemini-3-flash-preview</code></pre>
+        <div class="terminal">
+          <div class="terminal-header">
+            <span class="terminal-dot red"></span>
+            <span class="terminal-dot yellow"></span>
+            <span class="terminal-dot green"></span>
+            <span class="terminal-title">~/.commit-ai.conf</span>
+            <button class="copy-btn terminal-copy" onclick="copyConfig(this)">Copy</button>
+          </div>
+          <div class="terminal-body">
+            <div class="terminal-line config">
+              <span class="config-key">format</span>=<span class="config-value">gitmoji</span>
+            </div>
+            <div class="terminal-line config">
+              <span class="config-key">auto_confirm</span>=<span class="config-value">false</span>
+            </div>
+            <div class="terminal-line config">
+              <span class="config-key">ask_push</span>=<span class="config-value">false</span>
+            </div>
+            <div class="terminal-line config">
+              <span class="config-key">use_custom_prompt</span>=<span class="config-value">false</span>
+            </div>
+            <div class="terminal-line config">
+              <span class="config-key">provider</span>=<span class="config-value">gemini</span>
+            </div>
+            <div class="terminal-line config">
+              <span class="config-key">model</span>=<span class="config-value">gemini-3-flash-preview</span>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -258,8 +328,20 @@ model=gemini-3-flash-preview</code></pre>
           <p>Undo last commit (soft reset)</p>
         </div>
         <div class="option-card">
+          <code class="option-flag">-C, --custom</code>
+          <p>Use custom prompt file</p>
+        </div>
+        <div class="option-card">
           <code class="option-flag">--edit-prompt</code>
-          <p>Custom AI prompt for advanced users</p>
+          <p>Edit custom AI prompt file</p>
+        </div>
+        <div class="option-card">
+          <code class="option-flag">-h, --help</code>
+          <p>Show help message</p>
+        </div>
+        <div class="option-card">
+          <code class="option-flag">-v, --version</code>
+          <p>Show version number</p>
         </div>
       </div>
     </section>
@@ -282,10 +364,41 @@ model=gemini-3-flash-preview</code></pre>
       });
     });
 
-    // Copy code functionality
+    // Copy code functionality (legacy)
     function copyCode(btn) {
-      const code = btn.nextElementSibling.querySelector('code').innerText;
+      const code = btn.closest('.terminal').querySelector('.terminal-body').innerText;
       navigator.clipboard.writeText(code);
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy', 2000);
+    }
+
+    // Copy terminal commands (removes $ and PS> prompts)
+    function copyTerminal(btn) {
+      const lines = btn.closest('.terminal').querySelectorAll('.terminal-line');
+      let commands = [];
+      lines.forEach(line => {
+        if (!line.classList.contains('comment') && !line.classList.contains('output')) {
+          let text = line.textContent.trim();
+          // Remove $ or PS> prompt
+          text = text.replace(/^\$\s*/, '').replace(/^PS>\s*/, '');
+          if (text) commands.push(text);
+        }
+      });
+      navigator.clipboard.writeText(commands.join('\n'));
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy', 2000);
+    }
+
+    // Copy config content
+    function copyConfig(btn) {
+      const lines = btn.closest('.terminal').querySelectorAll('.terminal-line.config');
+      let config = [];
+      lines.forEach(line => {
+        const key = line.querySelector('.config-key').textContent;
+        const value = line.querySelector('.config-value').textContent;
+        config.push(`${key}=${value}`);
+      });
+      navigator.clipboard.writeText(config.join('\n'));
       btn.textContent = 'Copied!';
       setTimeout(() => btn.textContent = 'Copy', 2000);
     }

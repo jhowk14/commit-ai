@@ -275,6 +275,7 @@ body {
 
 .terminal-line {
   margin-bottom: 12px;
+  text-align: left;
 }
 
 .terminal-line.output {
@@ -293,6 +294,37 @@ body {
 
 .generated {
   color: var(--blue);
+}
+
+.comment-text {
+  color: #6A9955;
+  font-style: italic;
+}
+
+.config-key {
+  color: var(--blue);
+}
+
+.config-value {
+  color: var(--green);
+}
+
+.terminal-copy {
+  margin-left: auto;
+  position: relative;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: var(--text-muted);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.terminal-copy:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--text-light);
 }
 
 /* ============================================
@@ -373,10 +405,13 @@ body {
   color: var(--windows-blue);
 }
 
-.copy-btn {
+.code-block .copy-btn {
   position: absolute;
   top: 12px;
   right: 12px;
+}
+
+.copy-btn {
   background: rgba(255, 255, 255, 0.1);
   border: none;
   color: var(--text-muted);
@@ -409,12 +444,16 @@ body {
 .api-setup {
   max-width: 700px;
   margin: 48px auto 0;
-  text-align: center;
 }
 
 .api-setup h3 {
+  text-align: left;
   font-size: 1.25rem;
   margin-bottom: 16px;
+}
+
+.api-setup .install-note {
+  text-align: left;
 }
 
 .api-tabs {
