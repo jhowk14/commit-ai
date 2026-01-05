@@ -2,14 +2,16 @@
 set -e
 
 # ================= CONFIG =================
-VERSION="1.2.0"
+VERSION="1.3.0"
 MAX_CHARS=14000
 CONFIG_FILE="$HOME/.commit-ai.conf"
+CUSTOM_PROMPT_FILE="$HOME/.commit-ai-prompt.txt"
 
 # Defaults
 DEFAULT_FORMAT="conventional"
 DEFAULT_AUTO_CONFIRM="false"
-DEFAULT_MODEL="gemini-2.0-flash"
+DEFAULT_PROVIDER="gemini"
+DEFAULT_MODEL="gemini-3-flash-preview"
 
 # Runtime
 AUTO_YES=false
@@ -18,6 +20,8 @@ UNDO_LAST=false
 EMOJI_MODE=false
 SETUP_MODE=false
 SHOW_CONFIG=false
+EDIT_PROMPT=false
+PROVIDER="gemini"
 # =========================================
 
 # -------------------------------------------------
@@ -26,11 +30,9 @@ SHOW_CONFIG=false
 load_config() {
   if [ -f "$CONFIG_FILE" ]; then
     while IFS='=' read -r key value; do
-      # Skip comments and empty lines
       [[ "$key" =~ ^#.*$ ]] && continue
       [[ -z "$key" ]] && continue
       
-      # Trim whitespace
       key=$(echo "$key" | xargs)
       value=$(echo "$value" | xargs)
       
@@ -41,11 +43,17 @@ load_config() {
         auto_confirm)
           [[ "$value" == "true" ]] && AUTO_YES=true
           ;;
+        provider)
+          PROVIDER="$value"
+          ;;
         model)
           DEFAULT_MODEL="$value"
           ;;
-        api_key)
+        gemini_api_key)
           [[ -z "$GEMINI_API_KEY" ]] && GEMINI_API_KEY="$value"
+          ;;
+        openai_api_key)
+          [[ -z "$OPENAI_API_KEY" ]] && OPENAI_API_KEY="$value"
           ;;
       esac
     done < "$CONFIG_FILE"
@@ -58,8 +66,10 @@ load_config() {
 save_config() {
   local format="$1"
   local auto_confirm="$2"
-  local model="$3"
-  local api_key="$4"
+  local provider="$3"
+  local model="$4"
+  local gemini_key="$5"
+  local openai_key="$6"
 
   cat > "$CONFIG_FILE" << EOF
 # commit-ai configuration
@@ -71,11 +81,15 @@ format=$format
 # Auto-confirm commits without prompt: true | false
 auto_confirm=$auto_confirm
 
-# Gemini model to use
+# AI Provider: gemini | openai
+provider=$provider
+
+# Model to use (depends on provider)
 model=$model
 
-# API Key (optional - can also use GEMINI_API_KEY environment variable)
-$([ -n "$api_key" ] && echo "api_key=$api_key" || echo "# api_key=your_key_here")
+# API Keys (optional - can also use environment variables)
+$([ -n "$gemini_key" ] && echo "gemini_api_key=$gemini_key" || echo "# gemini_api_key=your_key_here")
+$([ -n "$openai_key" ] && echo "openai_api_key=$openai_key" || echo "# openai_api_key=your_key_here")
 EOF
   echo "✅ Configuration saved to $CONFIG_FILE"
 }
@@ -92,8 +106,10 @@ interactive_setup() {
   # Load existing config for defaults
   local current_format="conventional"
   local current_auto="false"
-  local current_model="gemini-2.0-flash"
-  local current_key=""
+  local current_provider="gemini"
+  local current_model="gemini-3-flash-preview"
+  local current_gemini_key=""
+  local current_openai_key=""
 
   if [ -f "$CONFIG_FILE" ]; then
     while IFS='=' read -r key value; do
@@ -104,79 +120,204 @@ interactive_setup() {
       case "$key" in
         format) current_format="$value" ;;
         auto_confirm) current_auto="$value" ;;
+        provider) current_provider="$value" ;;
         model) current_model="$value" ;;
-        api_key) current_key="$value" ;;
+        gemini_api_key) current_gemini_key="$value" ;;
+        openai_api_key) current_openai_key="$value" ;;
       esac
     done < "$CONFIG_FILE"
   fi
 
-  # Format selection
+  # Format selection with validation
   echo "📝 Commit format:"
   echo "   1) conventional (feat:, fix:, etc.)"
   echo "   2) gitmoji (✨, 🐛, etc.)"
   echo
   local format_choice
-  read -p "Choose format [current: $current_format] (1/2): " format_choice
-  case "$format_choice" in
-    1) current_format="conventional" ;;
-    2) current_format="gitmoji" ;;
-    "") ;; # Keep current
-  esac
+  while true; do
+    read -p "Choose format [current: $current_format] (1/2): " format_choice
+    case "$format_choice" in
+      1) current_format="conventional"; break ;;
+      2) current_format="gitmoji"; break ;;
+      "") break ;; # Keep current
+      *) echo "⚠️  Invalid option. Please enter 1 or 2." ;;
+    esac
+  done
 
-  # Auto-confirm
+  # Auto-confirm with validation
   echo
   echo "⚡ Auto-confirm commits (skip confirmation prompt)?"
   local auto_choice
-  read -p "Enable auto-confirm? [current: $current_auto] (y/n): " auto_choice
-  case "$auto_choice" in
-    y|Y|yes) current_auto="true" ;;
-    n|N|no) current_auto="false" ;;
-    "") ;; # Keep current
-  esac
+  while true; do
+    read -p "Enable auto-confirm? [current: $current_auto] (y/n): " auto_choice
+    case "$auto_choice" in
+      y|Y|yes|YES) current_auto="true"; break ;;
+      n|N|no|NO) current_auto="false"; break ;;
+      "") break ;; # Keep current
+      *) echo "⚠️  Invalid option. Please enter y or n." ;;
+    esac
+  done
 
-  # Model selection
+  # Provider selection with validation
+  local old_provider="$current_provider"
   echo
-  echo "🧠 Gemini model:"
-  echo "   1) gemini-2.0-flash (fast, recommended)"
-  echo "   2) gemini-2.0-flash-lite (faster, lighter)"
-  echo "   3) gemini-2.5-pro-preview (advanced)"
-  echo "   4) Custom"
+  echo "🔌 AI Provider:"
+  echo "   1) Gemini (Google)"
+  echo "   2) OpenAI (GPT)"
   echo
-  local model_choice
-  read -p "Choose model [current: $current_model] (1/2/3/4): " model_choice
-  case "$model_choice" in
-    1) current_model="gemini-2.0-flash" ;;
-    2) current_model="gemini-2.0-flash-lite" ;;
-    3) current_model="gemini-2.5-pro-preview" ;;
-    4) 
-      read -p "Enter custom model name: " current_model
-      ;;
-    "") ;; # Keep current
-  esac
+  local provider_choice
+  while true; do
+    read -p "Choose provider [current: $current_provider] (1/2): " provider_choice
+    case "$provider_choice" in
+      1) current_provider="gemini"; break ;;
+      2) current_provider="openai"; break ;;
+      "") break ;; # Keep current
+      *) echo "⚠️  Invalid option. Please enter 1 or 2." ;;
+    esac
+  done
 
-  # API Key
+  # Reset model to default if provider changed
+  if [[ "$old_provider" != "$current_provider" ]]; then
+    if [[ "$current_provider" == "gemini" ]]; then
+      current_model="gemini-3-flash-preview"
+    else
+      current_model="gpt-4o-mini"
+    fi
+  fi
+
+  # Model selection based on provider
+  echo
+  echo "🧠 Model selection:"
+  if [[ "$current_provider" == "gemini" ]]; then
+    echo "   1) gemini-3-flash-preview (recommended)"
+    echo "   2) gemini-2.5-flash"
+    echo "   3) gemini-2.0-flash"
+    echo "   4) gemini-2.5-pro-preview (advanced)"
+    echo "   5) Custom"
+    echo
+    local model_choice
+    while true; do
+      read -p "Choose model [current: $current_model] (1-5): " model_choice
+      case "$model_choice" in
+        1) current_model="gemini-3-flash-preview"; break ;;
+        2) current_model="gemini-2.5-flash"; break ;;
+        3) current_model="gemini-2.0-flash"; break ;;
+        4) current_model="gemini-2.5-pro-preview"; break ;;
+        5) 
+          read -p "Enter custom model name: " current_model
+          break
+          ;;
+        "") break ;; # Keep current
+        *) echo "⚠️  Invalid option. Please enter 1-5." ;;
+      esac
+    done
+  else
+    echo "   1) gpt-4o-mini (fast, recommended)"
+    echo "   2) gpt-4o (advanced)"
+    echo "   3) gpt-4-turbo"
+    echo "   4) gpt-3.5-turbo (legacy)"
+    echo "   5) Custom"
+    echo
+    local model_choice
+    while true; do
+      read -p "Choose model [current: $current_model] (1-5): " model_choice
+      case "$model_choice" in
+        1) current_model="gpt-4o-mini"; break ;;
+        2) current_model="gpt-4o"; break ;;
+        3) current_model="gpt-4-turbo"; break ;;
+        4) current_model="gpt-3.5-turbo"; break ;;
+        5) 
+          read -p "Enter custom model name: " current_model
+          break
+          ;;
+        "") break ;; # Keep current
+        *) echo "⚠️  Invalid option. Please enter 1-5." ;;
+      esac
+    done
+  fi
+
+  # API Key - only ask for the selected provider
   echo
   echo "🔐 API Key configuration:"
-  if [ -n "$current_key" ]; then
-    echo "   Current: ****${current_key: -4}"
-  elif [ -n "$GEMINI_API_KEY" ]; then
-    echo "   Using environment variable GEMINI_API_KEY"
+  
+  if [[ "$current_provider" == "gemini" ]]; then
+    echo
+    echo "  Gemini API Key:"
+    if [ -n "$current_gemini_key" ]; then
+      echo "    Current: ****${current_gemini_key: -4}"
+    elif [ -n "$GEMINI_API_KEY" ]; then
+      echo "    Using environment variable"
+    else
+      echo "    Not configured"
+    fi
+    read -p "  Enter Gemini API key (leave empty to keep): " new_gemini_key
+    [ -n "$new_gemini_key" ] && current_gemini_key="$new_gemini_key"
   else
-    echo "   Not configured"
+    echo
+    echo "  OpenAI API Key:"
+    if [ -n "$current_openai_key" ]; then
+      echo "    Current: ****${current_openai_key: -4}"
+    elif [ -n "$OPENAI_API_KEY" ]; then
+      echo "    Using environment variable"
+    else
+      echo "    Not configured"
+    fi
+    read -p "  Enter OpenAI API key (leave empty to keep): " new_openai_key
+    [ -n "$new_openai_key" ] && current_openai_key="$new_openai_key"
   fi
-  echo
-  read -p "Enter new API key (leave empty to keep current): " new_key
-  [ -n "$new_key" ] && current_key="$new_key"
 
   # Save
   echo
-  save_config "$current_format" "$current_auto" "$current_model" "$current_key"
-
+  save_config "$current_format" "$current_auto" "$current_provider" "$current_model" "$current_gemini_key" "$current_openai_key"
 
   echo
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo "  Configuration complete! Run 'commit-ai' to start."
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  exit 0
+}
+
+# -------------------------------------------------
+# EDIT CUSTOM PROMPT
+# -------------------------------------------------
+edit_prompt() {
+  if [ ! -f "$CUSTOM_PROMPT_FILE" ]; then
+    cat > "$CUSTOM_PROMPT_FILE" << 'EOF'
+# Custom commit-ai prompt
+# Available variables: {HISTORY}, {FILES}, {DIFF}
+# Delete this file to use default prompts
+
+You are a senior Git expert.
+
+Recent commit history:
+{HISTORY}
+
+Staged files:
+{FILES}
+
+Relevant diff:
+{DIFF}
+
+MANDATORY RULES:
+- Return ONLY the commit message
+- Use imperative mood
+- Max length: 72 characters
+- No trailing period
+EOF
+    echo "📝 Created custom prompt file: $CUSTOM_PROMPT_FILE"
+  fi
+  
+  # Try to open with default editor
+  if [ -n "$EDITOR" ]; then
+    "$EDITOR" "$CUSTOM_PROMPT_FILE"
+  elif command -v nano &> /dev/null; then
+    nano "$CUSTOM_PROMPT_FILE"
+  elif command -v vim &> /dev/null; then
+    vim "$CUSTOM_PROMPT_FILE"
+  else
+    echo "📂 Custom prompt file: $CUSTOM_PROMPT_FILE"
+    echo "ℹ️  Edit this file with your preferred editor"
+  fi
   exit 0
 }
 
@@ -197,7 +338,7 @@ show_config() {
       key=$(echo "$key" | xargs)
       value=$(echo "$value" | xargs)
       case "$key" in
-        api_key)
+        *api_key*)
           [ -n "$value" ] && echo "   $key = ****${value: -4}" || echo "   $key = (not set)"
           ;;
         *)
@@ -210,8 +351,13 @@ show_config() {
     echo "   Run 'commit-ai --setup' to create one."
   fi
   echo
-  echo "🔑 GEMINI_API_KEY env: $([ -n "$GEMINI_API_KEY" ] && echo "set" || echo "not set")"
+  echo "🔑 Environment variables:"
+  echo "   GEMINI_API_KEY: $([ -n "$GEMINI_API_KEY" ] && echo "set" || echo "not set")"
+  echo "   OPENAI_API_KEY: $([ -n "$OPENAI_API_KEY" ] && echo "set" || echo "not set")"
   echo
+  if [ -f "$CUSTOM_PROMPT_FILE" ]; then
+    echo "📝 Custom prompt: $CUSTOM_PROMPT_FILE"
+  fi
   exit 0
 }
 
@@ -220,28 +366,33 @@ show_config() {
 # -------------------------------------------------
 show_help() {
   cat << EOF
-commit-ai v$VERSION — AI-powered Git commit messages using Gemini
+commit-ai v$VERSION — AI-powered Git commit messages
 
 USAGE:
   commit-ai [OPTIONS]
 
 OPTIONS:
-  -e, --emoji     Use Gitmoji commit format (emoji prefix)
-  -p, --preview   Preview commit message only (no commit)
-  -y, --yes       Skip confirmation prompt (auto-commit)
-  -u, --undo      Undo last commit (soft reset, keeps changes staged)
-  -s, --setup     Interactive configuration setup
-  -c, --config    Show current configuration
-  -h, --help      Show this help message
-  -v, --version   Show version number
+  -e, --emoji       Use Gitmoji commit format (emoji prefix)
+  -p, --preview     Preview commit message only (no commit)
+  -y, --yes         Skip confirmation prompt (auto-commit)
+  -u, --undo        Undo last commit (soft reset, keeps changes staged)
+  -s, --setup       Interactive configuration setup
+  -c, --config      Show current configuration
+  --edit-prompt     Edit custom prompt for advanced users
+  -h, --help        Show this help message
+  -v, --version     Show version number
+
+PROVIDERS:
+  gemini            Google Gemini (default)
+  openai            OpenAI GPT models
 
 EXAMPLES:
-  commit-ai              # Conventional Commits format
+  commit-ai              # Use configured defaults
   commit-ai -e           # Gitmoji format
   commit-ai -e -p        # Preview Gitmoji message
   commit-ai -y           # Auto-commit without confirmation
-  commit-ai -u           # Undo last commit
   commit-ai --setup      # Configure preferences
+  commit-ai --edit-prompt # Customize AI prompt
 
 CONFIG FILE:
   Location: ~/.commit-ai.conf
@@ -249,11 +400,14 @@ CONFIG FILE:
   Available settings:
     format=conventional|gitmoji
     auto_confirm=true|false
-    model=gemini-2.0-flash
-    api_key=your_key_here
+    provider=gemini|openai
+    model=<model-name>
+    gemini_api_key=your_key
+    openai_api_key=your_key
 
 ENVIRONMENT:
-  GEMINI_API_KEY         Your Google Gemini API key (or set in config)
+  GEMINI_API_KEY     Google Gemini API key
+  OPENAI_API_KEY     OpenAI API key
 
 MORE INFO:
   https://github.com/jhowk14/commit-ai
@@ -280,12 +434,14 @@ for arg in "$@"; do
     --emoji|-e) EMOJI_MODE=true ;;
     --setup|-s) SETUP_MODE=true ;;
     --config|-c) SHOW_CONFIG=true ;;
+    --edit-prompt) EDIT_PROMPT=true ;;
   esac
 done
 
 # Handle special modes
 $SETUP_MODE && interactive_setup
 $SHOW_CONFIG && show_config
+$EDIT_PROMPT && edit_prompt
 
 # -------------------------------------------------
 # UNDO LAST COMMIT
@@ -308,11 +464,21 @@ for cmd in git jq curl; do
   }
 done
 
-if [ -z "$GEMINI_API_KEY" ]; then
-  echo "❌ GEMINI_API_KEY is not set."
-  echo "ℹ️  Run 'commit-ai --setup' to configure, or:"
-  echo "   export GEMINI_API_KEY=\"your_api_key\""
-  exit 1
+# Check API key based on provider
+if [[ "$PROVIDER" == "openai" ]]; then
+  if [ -z "$OPENAI_API_KEY" ]; then
+    echo "❌ OPENAI_API_KEY is not set."
+    echo "ℹ️  Run 'commit-ai --setup' to configure, or:"
+    echo "   export OPENAI_API_KEY=\"your_api_key\""
+    exit 1
+  fi
+else
+  if [ -z "$GEMINI_API_KEY" ]; then
+    echo "❌ GEMINI_API_KEY is not set."
+    echo "ℹ️  Run 'commit-ai --setup' to configure, or:"
+    echo "   export GEMINI_API_KEY=\"your_api_key\""
+    exit 1
+  fi
 fi
 
 # -------------------------------------------------
@@ -334,7 +500,12 @@ HISTORY=$(git log --oneline -n 20)
 # -------------------------------------------------
 # PROMPT SELECTION
 # -------------------------------------------------
-if $EMOJI_MODE; then
+if [ -f "$CUSTOM_PROMPT_FILE" ]; then
+  PROMPT=$(cat "$CUSTOM_PROMPT_FILE" | grep -v '^#')
+  PROMPT="${PROMPT//\{HISTORY\}/$HISTORY}"
+  PROMPT="${PROMPT//\{FILES\}/$FILES}"
+  PROMPT="${PROMPT//\{DIFF\}/$DIFF}"
+elif $EMOJI_MODE; then
   PROMPT=$(cat <<EOF
 You are a senior Git and Gitmoji expert.
 
@@ -388,39 +559,62 @@ EOF
 fi
 
 # -------------------------------------------------
-# GEMINI REQUEST
+# API REQUEST
 # -------------------------------------------------
-JSON=$(jq -n --arg text "$PROMPT" '{
-  contents: [{ parts: [{ text: $text }] }]
-}')
+if [[ "$PROVIDER" == "openai" ]]; then
+  # OpenAI API
+  JSON=$(jq -n --arg text "$PROMPT" '{
+    model: "'"$DEFAULT_MODEL"'",
+    messages: [{ role: "user", content: $text }],
+    max_tokens: 100
+  }')
 
-RESPONSE=$(curl -s \
-  -X POST \
-  "https://generativelanguage.googleapis.com/v1beta/models/$DEFAULT_MODEL:generateContent" \
-  -H "Content-Type: application/json" \
-  -H "x-goog-api-key: $GEMINI_API_KEY" \
-  -d "$JSON"
-)
+  RESPONSE=$(curl -s \
+    -X POST \
+    "https://api.openai.com/v1/chat/completions" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $OPENAI_API_KEY" \
+    -d "$JSON"
+  )
 
-COMMIT_MSG=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text')
+  COMMIT_MSG=$(echo "$RESPONSE" | jq -r '.choices[0].message.content')
+else
+  # Gemini API
+  JSON=$(jq -n --arg text "$PROMPT" '{
+    contents: [{ parts: [{ text: $text }] }]
+  }')
+
+  RESPONSE=$(curl -s \
+    -X POST \
+    "https://generativelanguage.googleapis.com/v1beta/models/$DEFAULT_MODEL:generateContent" \
+    -H "Content-Type: application/json" \
+    -H "x-goog-api-key: $GEMINI_API_KEY" \
+    -d "$JSON"
+  )
+
+  COMMIT_MSG=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text')
+fi
 
 if [ -z "$COMMIT_MSG" ] || [ "$COMMIT_MSG" = "null" ]; then
   echo "❌ Failed to generate commit message."
-  echo "$RESPONSE" | jq -r '.error.message // empty'
+  if [[ "$PROVIDER" == "openai" ]]; then
+    echo "$RESPONSE" | jq -r '.error.message // empty'
+  else
+    echo "$RESPONSE" | jq -r '.error.message // empty'
+  fi
   exit 1
 fi
 
 # -------------------------------------------------
 # NORMALIZATION
 # -------------------------------------------------
-COMMIT_MSG=$(echo "$COMMIT_MSG" | tr -d '\n' | xargs)
+# Remove newlines and trim whitespace (without xargs to avoid quote issues)
+COMMIT_MSG=$(echo "$COMMIT_MSG" | tr -d '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 
 if $EMOJI_MODE; then
-  # ensure emoji + space
   COMMIT_MSG=$(echo "$COMMIT_MSG" | sed -E 's/^(\X)([^ ])/\1 \2/')
   COMMIT_MSG=$(echo "$COMMIT_MSG" | sed -E 's/^(\X )([a-z])/\1\u\2/')
 else
-  # ensure lowercase after colon
   COMMIT_MSG=$(echo "$COMMIT_MSG" | sed -E 's/^([a-z]+): ([A-Z])/\1: \L\2/')
 fi
 
@@ -428,16 +622,29 @@ fi
 # OUTPUT
 # -------------------------------------------------
 if $PREVIEW_ONLY; then
-  echo "ℹ️ Preview:"
-  echo "$COMMIT_MSG"
+  echo
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "  ℹ️  Preview Mode"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo
+  echo "  $COMMIT_MSG"
+  echo
   exit 0
 fi
 
 if ! $AUTO_YES; then
   echo
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "  📝 Generated Commit Message"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo
   read -e -i "$COMMIT_MSG" EDITED_MSG
   [ -n "$EDITED_MSG" ] && COMMIT_MSG="$EDITED_MSG"
+  echo
 fi
 
 git commit -m "$COMMIT_MSG"
-echo "✅ Commit created!"
+echo
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  ✅ Commit created successfully!"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
