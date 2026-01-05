@@ -22,6 +22,7 @@ SETUP_MODE=false
 SHOW_CONFIG=false
 EDIT_PROMPT=false
 PROVIDER="gemini"
+ASK_PUSH=false
 # =========================================
 
 # -------------------------------------------------
@@ -42,6 +43,9 @@ load_config() {
           ;;
         auto_confirm)
           [[ "$value" == "true" ]] && AUTO_YES=true
+          ;;
+        ask_push)
+          [[ "$value" == "true" ]] && ASK_PUSH=true
           ;;
         provider)
           PROVIDER="$value"
@@ -66,10 +70,11 @@ load_config() {
 save_config() {
   local format="$1"
   local auto_confirm="$2"
-  local provider="$3"
-  local model="$4"
-  local gemini_key="$5"
-  local openai_key="$6"
+  local ask_push="$3"
+  local provider="$4"
+  local model="$5"
+  local gemini_key="$6"
+  local openai_key="$7"
 
   cat > "$CONFIG_FILE" << EOF
 # commit-ai configuration
@@ -80,6 +85,9 @@ format=$format
 
 # Auto-confirm commits without prompt: true | false
 auto_confirm=$auto_confirm
+
+# Ask to push after commit: true | false
+ask_push=$ask_push
 
 # AI Provider: gemini | openai
 provider=$provider
@@ -106,6 +114,7 @@ interactive_setup() {
   # Load existing config for defaults
   local current_format="conventional"
   local current_auto="false"
+  local current_push="false"
   local current_provider="gemini"
   local current_model="gemini-3-flash-preview"
   local current_gemini_key=""
@@ -120,6 +129,7 @@ interactive_setup() {
       case "$key" in
         format) current_format="$value" ;;
         auto_confirm) current_auto="$value" ;;
+        ask_push) current_push="$value" ;;
         provider) current_provider="$value" ;;
         model) current_model="$value" ;;
         gemini_api_key) current_gemini_key="$value" ;;
@@ -153,6 +163,20 @@ interactive_setup() {
     case "$auto_choice" in
       y|Y|yes|YES) current_auto="true"; break ;;
       n|N|no|NO) current_auto="false"; break ;;
+      "") break ;; # Keep current
+      *) echo "⚠️  Invalid option. Please enter y or n." ;;
+    esac
+  done
+
+  # Ask to push after commit
+  echo
+  echo "🚀 Ask to push after commit?"
+  local push_choice
+  while true; do
+    read -p "Enable push prompt? [current: $current_push] (y/n): " push_choice
+    case "$push_choice" in
+      y|Y|yes|YES) current_push="true"; break ;;
+      n|N|no|NO) current_push="false"; break ;;
       "") break ;; # Keep current
       *) echo "⚠️  Invalid option. Please enter y or n." ;;
     esac
@@ -268,7 +292,7 @@ interactive_setup() {
 
   # Save
   echo
-  save_config "$current_format" "$current_auto" "$current_provider" "$current_model" "$current_gemini_key" "$current_openai_key"
+  save_config "$current_format" "$current_auto" "$current_push" "$current_provider" "$current_model" "$current_gemini_key" "$current_openai_key"
 
   echo
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -648,3 +672,19 @@ echo
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  ✅ Commit created successfully!"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# Ask to push if configured
+if $ASK_PUSH; then
+  echo
+  read -p "🚀 Push to remote? (y/n): " push_choice
+  case "$push_choice" in
+    y|Y|yes|YES)
+      echo
+      git push
+      echo
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo "  🚀 Pushed to remote!"
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      ;;
+  esac
+fi
