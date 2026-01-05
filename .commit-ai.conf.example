@@ -1,0 +1,14 @@
+# commit-ai configuration
+# Location: ~/.commit-ai.conf
+
+# Default commit format: conventional | gitmoji
+format=conventional
+
+# Auto-confirm commits without prompt: true | false
+auto_confirm=false
+
+# Gemini model to use
+model=gemini-2.0-flash
+
+# API Key (optional - can also use GEMINI_API_KEY environment variable)
+# api_key=your_key_here

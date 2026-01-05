@@ -1,4 +1,4 @@
-# commit-ai 🚀✨
+# commit-ai 🤖
 
 Generate high-quality Git commit messages automatically using Google Gemini, with support for Gitmoji and Conventional Commits — based only on staged changes.
 
@@ -7,58 +7,94 @@ Generate high-quality Git commit messages automatically using Google Gemini, wit
 - 🤖 AI-generated commit messages using Gemini
 - 🎨 Gitmoji mode (`-e`)
 - 📦 Conventional Commits mode (default)
-- 🔍 Reads only staged diffs (`git add`)
-- 👀 Preview mode (no commit)
+- 🔧 **Persistent configuration** (`~/.commit-ai.conf`)
+- ⚙️ **Interactive setup** (`--setup`)
+- 🔍 Reads only staged diffs
 - ✏️ Edit message before commit
 - ↩️ Undo last commit (soft reset)
-- 🧠 Uses your own commit history as style reference
-- ⚡ Fast, lightweight Bash script
+- 🧠 Uses your commit history as reference
+- 🐧 Linux & 🪟 Windows support
 
 ## 📦 Installation
 
-### 🟦 Arch Linux (AUR)
+### 🐧 Linux
+
+#### Quick Install (Any Distro)
+
+```bash
+git clone https://github.com/jhowk14/commit-ai.git
+cd commit-ai/any-linux
+chmod +x install.sh
+./install.sh
+```
+
+#### Arch Linux (AUR)
 
 ```bash
 yay -S commit-ai
+# Then run: commit-ai --setup
 ```
 
-or
+---
+
+### 🪟 Windows
+
+#### PowerShell Installation
+
+```powershell
+# Clone and install
+git clone https://github.com/jhowk14/commit-ai.git
+cd commit-ai\windows
+.\install.ps1
+```
+
+The installer will:
+- Copy scripts to `$HOME\bin\`
+- Add to PATH
+- Create PowerShell alias
+- Run interactive setup
+
+---
+
+## ⚙️ Configuration
+
+### Interactive Setup
+
+Run the setup wizard to configure your preferences:
 
 ```bash
-paru -S commit-ai
+# Linux
+commit-ai --setup
+
+# Windows
+commit-ai -Setup
 ```
 
-### 🟨 Manual install (any Linux)
+### Config File
+
+Configuration is stored in `~/.commit-ai.conf`:
+
+```ini
+# Default commit format: conventional | gitmoji
+format=conventional
+
+# Auto-confirm commits: true | false
+auto_confirm=false
+
+# Gemini model
+model=gemini-2.0-flash
+
+# API Key (optional - can use env var instead)
+api_key=your_key_here
+```
+
+### View Current Config
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jhowk14/commit-ai/master/commit-ai.sh \
-  | sudo tee /usr/bin/commit-ai > /dev/null
-
-sudo chmod +x /usr/bin/commit-ai
+commit-ai --config  # or -c
 ```
 
-## 🔑 Requirements
-
-- `git`
-- `jq`
-- `curl`
-- A Google Gemini API key
-
-## 🔐 Environment variable
-
-You must export your API key:
-
-```bash
-export GEMINI_API_KEY="your_api_key_here"
-```
-
-To persist it:
-
-```bash
-echo 'export GEMINI_API_KEY="your_api_key_here"' >> ~/.bashrc
-```
-
-(or `~/.zshrc`)
+---
 
 ## 🚀 Usage
 
@@ -70,29 +106,26 @@ git add .
 
 ### 2️⃣ Generate commit message
 
-#### Conventional Commits (default)
-
 ```bash
+# Conventional Commits (default or set in config)
 commit-ai
-```
 
-Example output:
-
-```
-feat: add support for preview mode
-```
-
-#### Gitmoji mode
-
-```bash
+# Gitmoji mode
 commit-ai -e
 ```
 
-Example output:
+### Examples
 
+```bash
+commit-ai              # Use config defaults
+commit-ai -e           # Gitmoji format
+commit-ai -e -p        # Preview Gitmoji message
+commit-ai -y           # Auto-commit without confirmation
+commit-ai -u           # Undo last commit
+commit-ai --setup      # Configure preferences
 ```
-✨ Add preview mode support
-```
+
+---
 
 ## ⚙️ Options
 
@@ -102,42 +135,54 @@ Example output:
 | `-p`, `--preview` | Preview commit message only |
 | `-y`, `--yes` | Skip confirmation prompt |
 | `-u`, `--undo` | Undo last commit (soft reset) |
+| `-s`, `--setup` | Interactive configuration |
+| `-c`, `--config` | Show current configuration |
+| `-h`, `--help` | Show help message |
+| `-v`, `--version` | Show version |
 
-### 🔍 Preview only
+---
 
-```bash
-commit-ai -e -p
+## 🔑 Requirements
+
+### Linux
+- `git`, `jq`, `curl`
+- Google Gemini API key
+
+### Windows
+- Git for Windows
+- PowerShell 5.1+ (built-in on Windows 10/11)
+- Google Gemini API key
+
+---
+
+## 📁 Project Structure
+
+```
+commit-ai/
+├── any-linux/          # Linux scripts
+│   ├── commit-ai.sh    # Main script
+│   └── install.sh      # Installer
+├── arch-linux/         # AUR package
+│   ├── PKGBUILD
+│   └── .SRCINFO
+├── windows/            # Windows scripts
+│   ├── commit-ai.ps1   # Main script
+│   ├── commit-ai.bat   # Batch wrapper
+│   └── install.ps1     # Installer
+├── docs/               # Website
+└── .commit-ai.conf.example
 ```
 
-### ⚡ Auto-commit (no prompt)
-
-```bash
-commit-ai -y
-```
-
-### ↩️ Undo last commit
-
-```bash
-commit-ai -u
-```
-
-> This keeps your changes staged
-
-## 🧠 How it works
-
-1. Reads only staged files
-2. Extracts a trimmed diff
-3. Sends context to Gemini
-4. Enforces strict formatting rules
-5. Normalizes output
-6. Creates a clean commit message
+---
 
 ## 🛡️ Security
 
 - ❌ API keys are never hardcoded
-- ❌ No repository data is stored
+- ✅ Can store API key in config file or env var
 - ✅ Only staged diffs are sent
 - ✅ Fully local execution
+
+---
 
 ## 📄 License
 
@@ -145,17 +190,14 @@ MIT License © 2025
 
 ## 🤝 Contributing
 
-Pull requests are welcome.
+Pull requests are welcome!
 
 **Ideas:**
-
 - Git hook support (`prepare-commit-msg`)
 - Model selection flag
-- Commit message cache
 - Shell completion
 
 ## ⭐ Acknowledgments
 
-- [Gitmoji](https://gitmoji.dev/) community
+- [Gitmoji](https://gitmoji.dev/)
 - [Google Gemini](https://deepmind.google/technologies/gemini/)
-- Arch Linux AUR maintainers

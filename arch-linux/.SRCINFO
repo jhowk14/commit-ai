@@ -1,6 +1,6 @@
 pkgbase = commit-ai
 	pkgdesc = Generate Git commit messages using Gemini with Gitmoji or Conventional Commits
-	pkgver = 1.1.0
+	pkgver = 1.2.0
 	pkgrel = 1
 	url = https://jhowk14.github.io/commit-ai/
 	arch = any
@@ -8,7 +8,7 @@ pkgbase = commit-ai
 	depends = git
 	depends = jq
 	depends = curl
-	source = commit-ai-1.1.0.tar.gz::https://github.com/jhowk14/commit-ai/archive/refs/tags/v1.1.0.tar.gz
+	source = commit-ai-1.2.0.tar.gz::https://github.com/jhowk14/commit-ai/archive/refs/tags/v1.2.0.tar.gz
 	sha256sums = SKIP
 
 pkgname = commit-ai
