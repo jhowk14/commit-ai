@@ -18,6 +18,7 @@ AUTO_YES=false
 PREVIEW_ONLY=false
 UNDO_LAST=false
 EMOJI_MODE=false
+CONVENTIONAL_MODE=false
 SETUP_MODE=false
 SHOW_CONFIG=false
 EDIT_PROMPT=false
@@ -397,11 +398,12 @@ USAGE:
 
 OPTIONS:
   -e, --emoji       Use Gitmoji commit format (emoji prefix)
+  -c, --conv        Use Conventional Commits format (overrides config)
   -p, --preview     Preview commit message only (no commit)
   -y, --yes         Skip confirmation prompt (auto-commit)
   -u, --undo        Undo last commit (soft reset, keeps changes staged)
   -s, --setup       Interactive configuration setup
-  -c, --config      Show current configuration
+  --config          Show current configuration
   --edit-prompt     Edit custom prompt for advanced users
   -h, --help        Show this help message
   -v, --version     Show version number
@@ -413,6 +415,7 @@ PROVIDERS:
 EXAMPLES:
   commit-ai              # Use configured defaults
   commit-ai -e           # Gitmoji format
+  commit-ai -c           # Conventional format
   commit-ai -e -p        # Preview Gitmoji message
   commit-ai -y           # Auto-commit without confirmation
   commit-ai --setup      # Configure preferences
@@ -456,11 +459,17 @@ for arg in "$@"; do
     --preview|-p) PREVIEW_ONLY=true ;;
     --undo|-u) UNDO_LAST=true ;;
     --emoji|-e) EMOJI_MODE=true ;;
+    --conv|-c) CONVENTIONAL_MODE=true ;;
     --setup|-s) SETUP_MODE=true ;;
-    --config|-c) SHOW_CONFIG=true ;;
+    --config) SHOW_CONFIG=true ;;
     --edit-prompt) EDIT_PROMPT=true ;;
   esac
 done
+
+# Handle mode flags (--conv overrides gitmoji default)
+if $CONVENTIONAL_MODE; then
+  EMOJI_MODE=false
+fi
 
 # Handle special modes
 $SETUP_MODE && interactive_setup
