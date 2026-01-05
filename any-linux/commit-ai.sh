@@ -24,6 +24,7 @@ SHOW_CONFIG=false
 EDIT_PROMPT=false
 PROVIDER="gemini"
 ASK_PUSH=false
+USE_CUSTOM_PROMPT=false
 # =========================================
 
 # -------------------------------------------------
@@ -47,6 +48,9 @@ load_config() {
           ;;
         ask_push)
           [[ "$value" == "true" ]] && ASK_PUSH=true
+          ;;
+        use_custom_prompt)
+          [[ "$value" == "true" ]] && USE_CUSTOM_PROMPT=true
           ;;
         provider)
           PROVIDER="$value"
@@ -72,10 +76,11 @@ save_config() {
   local format="$1"
   local auto_confirm="$2"
   local ask_push="$3"
-  local provider="$4"
-  local model="$5"
-  local gemini_key="$6"
-  local openai_key="$7"
+  local use_custom_prompt="$4"
+  local provider="$5"
+  local model="$6"
+  local gemini_key="$7"
+  local openai_key="$8"
 
   cat > "$CONFIG_FILE" << EOF
 # commit-ai configuration
@@ -89,6 +94,9 @@ auto_confirm=$auto_confirm
 
 # Ask to push after commit: true | false
 ask_push=$ask_push
+
+# Use custom prompt file: true | false
+use_custom_prompt=$use_custom_prompt
 
 # AI Provider: gemini | openai
 provider=$provider
@@ -116,6 +124,7 @@ interactive_setup() {
   local current_format="conventional"
   local current_auto="false"
   local current_push="false"
+  local current_custom_prompt="false"
   local current_provider="gemini"
   local current_model="gemini-3-flash-preview"
   local current_gemini_key=""
@@ -131,6 +140,7 @@ interactive_setup() {
         format) current_format="$value" ;;
         auto_confirm) current_auto="$value" ;;
         ask_push) current_push="$value" ;;
+        use_custom_prompt) current_custom_prompt="$value" ;;
         provider) current_provider="$value" ;;
         model) current_model="$value" ;;
         gemini_api_key) current_gemini_key="$value" ;;
@@ -178,6 +188,20 @@ interactive_setup() {
     case "$push_choice" in
       y|Y|yes|YES) current_push="true"; break ;;
       n|N|no|NO) current_push="false"; break ;;
+      "") break ;; # Keep current
+      *) echo "⚠️  Invalid option. Please enter y or n." ;;
+    esac
+  done
+
+  # Use custom prompt
+  echo
+  echo "📝 Use custom prompt file (~/.commit-ai-prompt.txt)?"
+  local custom_prompt_choice
+  while true; do
+    read -p "Enable custom prompt? [current: $current_custom_prompt] (y/n): " custom_prompt_choice
+    case "$custom_prompt_choice" in
+      y|Y|yes|YES) current_custom_prompt="true"; break ;;
+      n|N|no|NO) current_custom_prompt="false"; break ;;
       "") break ;; # Keep current
       *) echo "⚠️  Invalid option. Please enter y or n." ;;
     esac
@@ -293,7 +317,7 @@ interactive_setup() {
 
   # Save
   echo
-  save_config "$current_format" "$current_auto" "$current_push" "$current_provider" "$current_model" "$current_gemini_key" "$current_openai_key"
+  save_config "$current_format" "$current_auto" "$current_push" "$current_custom_prompt" "$current_provider" "$current_model" "$current_gemini_key" "$current_openai_key"
 
   echo
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -399,6 +423,7 @@ USAGE:
 OPTIONS:
   -e, --emoji       Use Gitmoji commit format (emoji prefix)
   -c, --conv        Use Conventional Commits format (overrides config)
+  -C, --custom      Use custom prompt file (~/.commit-ai-prompt.txt)
   -p, --preview     Preview commit message only (no commit)
   -y, --yes         Skip confirmation prompt (auto-commit)
   -u, --undo        Undo last commit (soft reset, keeps changes staged)
@@ -427,6 +452,8 @@ CONFIG FILE:
   Available settings:
     format=conventional|gitmoji
     auto_confirm=true|false
+    ask_push=true|false
+    use_custom_prompt=true|false
     provider=gemini|openai
     model=<model-name>
     gemini_api_key=your_key
@@ -460,6 +487,7 @@ for arg in "$@"; do
     --undo|-u) UNDO_LAST=true ;;
     --emoji|-e) EMOJI_MODE=true ;;
     --conv|-c) CONVENTIONAL_MODE=true ;;
+    --custom|-C) USE_CUSTOM_PROMPT=true ;;
     --setup|-s) SETUP_MODE=true ;;
     --config) SHOW_CONFIG=true ;;
     --edit-prompt) EDIT_PROMPT=true ;;
@@ -533,7 +561,7 @@ HISTORY=$(git log --oneline -n 20)
 # -------------------------------------------------
 # PROMPT SELECTION
 # -------------------------------------------------
-if [ -f "$CUSTOM_PROMPT_FILE" ]; then
+if $USE_CUSTOM_PROMPT && [ -f "$CUSTOM_PROMPT_FILE" ]; then
   PROMPT=$(cat "$CUSTOM_PROMPT_FILE" | grep -v '^#')
   PROMPT="${PROMPT//\{HISTORY\}/$HISTORY}"
   PROMPT="${PROMPT//\{FILES\}/$FILES}"
