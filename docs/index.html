@@ -6,12 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <!-- Primary SEO Meta Tags -->
-  <title>commit-ai — AI-Powered Git Commit Messages with Gemini 🚀</title>
-  <meta name="title" content="commit-ai — AI-Powered Git Commit Messages with Gemini 🚀">
+  <title>commit-ai — AI-Powered Git Commit Messages 🚀</title>
+  <meta name="title" content="commit-ai — AI-Powered Git Commit Messages 🚀">
   <meta name="description"
-    content="Generate perfect Git commit messages in seconds! AI-powered by Google Gemini with Gitmoji 🎨 and Conventional Commits 📦 support. Works on Linux & Windows.">
+    content="Generate perfect Git commit messages in seconds! AI-powered by Gemini & OpenAI with Gitmoji 🎨 and Conventional Commits 📦 support. Works on Linux & Windows.">
   <meta name="keywords"
-    content="git, commit, ai, gemini, gitmoji, conventional commits, automation, bash, powershell, linux, windows, developer tools, productivity">
+    content="git, commit, ai, gemini, openai, gpt, gitmoji, conventional commits, automation, bash, powershell, linux, windows, developer tools, productivity">
   <meta name="author" content="jhowk14">
   <meta name="robots" content="index, follow">
 
@@ -51,7 +51,7 @@
     "applicationCategory": "DeveloperApplication",
     "operatingSystem": ["Linux", "Windows"],
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-    "softwareVersion": "1.2.0"
+    "softwareVersion": "1.3.0"
   }
   </script>
 </head>
@@ -70,7 +70,7 @@
 
     <div class="hero-content">
       <h1 class="logo">commit<span class="logo-emoji">🤖</span>ai</h1>
-      <p class="tagline">AI-powered Git commit messages with Gemini</p>
+      <p class="tagline">AI-powered Git commit messages with Gemini & OpenAI</p>
 
       <div class="cta-buttons">
         <a href="https://github.com/jhowk14/commit-ai" class="btn btn-primary" target="_blank">
@@ -101,8 +101,8 @@
       <div class="features-grid">
         <div class="feature-card">
           <span class="feature-icon">🤖</span>
-          <h3>AI-Powered</h3>
-          <p>Generate commit messages using Google Gemini</p>
+          <h3>Multi-Provider</h3>
+          <p>Supports Google Gemini & OpenAI GPT models</p>
         </div>
         <div class="feature-card">
           <span class="feature-icon">🎨</span>
@@ -219,8 +219,8 @@ cd commit-ai\windows
           <pre><code># ~/.commit-ai.conf
 format=gitmoji          # or conventional
 auto_confirm=false      # skip confirmation
-model=gemini-2.0-flash
-api_key=your_key_here</code></pre>
+provider=gemini         # or openai
+model=gemini-3-flash-preview</code></pre>
         </div>
       </div>
     </section>
@@ -238,6 +238,10 @@ api_key=your_key_here</code></pre>
           <p>Use Gitmoji commit format</p>
         </div>
         <div class="option-card">
+          <code class="option-flag">-c, --conv</code>
+          <p>Use Conventional Commits format</p>
+        </div>
+        <div class="option-card">
           <code class="option-flag">-p, --preview</code>
           <p>Preview message without committing</p>
         </div>
@@ -246,12 +250,16 @@ api_key=your_key_here</code></pre>
           <p>Skip confirmation prompt</p>
         </div>
         <div class="option-card">
-          <code class="option-flag">-c, --config</code>
+          <code class="option-flag">--config</code>
           <p>Show current configuration</p>
         </div>
         <div class="option-card">
           <code class="option-flag">-u, --undo</code>
           <p>Undo last commit (soft reset)</p>
+        </div>
+        <div class="option-card">
+          <code class="option-flag">--edit-prompt</code>
+          <p>Custom AI prompt for advanced users</p>
         </div>
       </div>
     </section>

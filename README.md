@@ -1,25 +1,24 @@
 # commit-ai 🤖
 
-Generate high-quality Git commit messages automatically using Google Gemini, with support for Gitmoji and Conventional Commits — based only on staged changes.
+Generate high-quality Git commit messages automatically using AI (Google Gemini or OpenAI), with support for Gitmoji and Conventional Commits.
 
 ## ✨ Features
 
-- 🤖 AI-generated commit messages using Gemini
+- 🤖 AI-generated commit messages
+- 🔌 **Multi-provider**: Gemini & OpenAI support
 - 🎨 Gitmoji mode (`-e`)
 - 📦 Conventional Commits mode (default)
-- 🔧 **Persistent configuration** (`~/.commit-ai.conf`)
-- ⚙️ **Interactive setup** (`--setup`)
+- 🔧 Persistent configuration
+- ⚙️ Interactive setup (`--setup`)
+- 📝 **Custom prompts** for advanced users
 - 🔍 Reads only staged diffs
 - ✏️ Edit message before commit
-- ↩️ Undo last commit (soft reset)
-- 🧠 Uses your commit history as reference
+- ↩️ Undo last commit
 - 🐧 Linux & 🪟 Windows support
 
 ## 📦 Installation
 
 ### 🐧 Linux
-
-#### Quick Install (Any Distro)
 
 ```bash
 git clone https://github.com/jhowk14/commit-ai.git
@@ -28,31 +27,20 @@ chmod +x install.sh
 ./install.sh
 ```
 
-#### Arch Linux (AUR)
+### 🔷 Arch Linux (AUR)
 
 ```bash
 yay -S commit-ai
-# Then run: commit-ai --setup
+commit-ai --setup
 ```
-
----
 
 ### 🪟 Windows
 
-#### PowerShell Installation
-
 ```powershell
-# Clone and install
 git clone https://github.com/jhowk14/commit-ai.git
 cd commit-ai\windows
 .\install.ps1
 ```
-
-The installer will:
-- Copy scripts to `$HOME\bin\`
-- Add to PATH
-- Create PowerShell alias
-- Run interactive setup
 
 ---
 
@@ -60,69 +48,48 @@ The installer will:
 
 ### Interactive Setup
 
-Run the setup wizard to configure your preferences:
-
 ```bash
-# Linux
 commit-ai --setup
-
-# Windows
-commit-ai -Setup
 ```
 
-### Config File
+The setup wizard guides you through:
+- ✅ Commit format (conventional/gitmoji)
+- ✅ Auto-confirm preference
+- ✅ AI Provider (Gemini/OpenAI)
+- ✅ Model selection
+- ✅ API key configuration
 
-Configuration is stored in `~/.commit-ai.conf`:
+### Config File (`~/.commit-ai.conf`)
 
 ```ini
-# Default commit format: conventional | gitmoji
 format=conventional
-
-# Auto-confirm commits: true | false
 auto_confirm=false
-
-# Gemini model
-model=gemini-2.0-flash
-
-# API Key (optional - can use env var instead)
-api_key=your_key_here
-```
-
-### View Current Config
-
-```bash
-commit-ai --config  # or -c
+ask_push=true
+provider=gemini
+model=gemini-3-flash-preview
+gemini_api_key=your_key
+openai_api_key=your_key
 ```
 
 ---
 
 ## 🚀 Usage
 
-### 1️⃣ Stage your changes
-
 ```bash
 git add .
-```
-
-### 2️⃣ Generate commit message
-
-```bash
-# Conventional Commits (default or set in config)
 commit-ai
-
-# Gitmoji mode
-commit-ai -e
 ```
 
 ### Examples
 
 ```bash
-commit-ai              # Use config defaults
+commit-ai              # Use defaults
 commit-ai -e           # Gitmoji format
-commit-ai -e -p        # Preview Gitmoji message
-commit-ai -y           # Auto-commit without confirmation
-commit-ai -u           # Undo last commit
-commit-ai --setup      # Configure preferences
+commit-ai -c           # Conventional format
+commit-ai -e -p        # Preview only
+commit-ai -y           # Auto-commit
+commit-ai --setup      # Configure
+commit-ai --edit-prompt # Custom prompt
 ```
 
 ---
@@ -131,14 +98,45 @@ commit-ai --setup      # Configure preferences
 
 | Flag | Description |
 |------|-------------|
-| `-e`, `--emoji` | Use Gitmoji commit format |
-| `-p`, `--preview` | Preview commit message only |
-| `-y`, `--yes` | Skip confirmation prompt |
-| `-u`, `--undo` | Undo last commit (soft reset) |
-| `-s`, `--setup` | Interactive configuration |
-| `-c`, `--config` | Show current configuration |
-| `-h`, `--help` | Show help message |
-| `-v`, `--version` | Show version |
+| `-e`, `--emoji` | Use Gitmoji format |
+| `-c`, `--conv` | Use Conventional format |
+| `-p`, `--preview` | Preview only |
+| `-y`, `--yes` | Skip confirmation |
+| `-u`, `--undo` | Undo last commit |
+| `-s`, `--setup` | Interactive setup |
+| `--config` | Show config |
+| `--edit-prompt` | Custom prompt editor |
+
+---
+
+## 🔌 Supported Providers
+
+### Gemini (Google)
+- `gemini-3-flash-preview` (recommended)
+- `gemini-2.5-flash`
+- `gemini-2.0-flash`
+- `gemini-2.5-pro-preview`
+
+### OpenAI
+- `gpt-4o-mini` (recommended)
+- `gpt-4o`
+- `gpt-4-turbo`
+- `gpt-3.5-turbo`
+
+---
+
+## 📝 Custom Prompts
+
+For advanced users who want to customize the AI prompt:
+
+```bash
+commit-ai --edit-prompt
+```
+
+This creates `~/.commit-ai-prompt.txt` with placeholders:
+- `{HISTORY}` - Recent commits
+- `{FILES}` - Staged files
+- `{DIFF}` - Code changes
 
 ---
 
@@ -146,12 +144,12 @@ commit-ai --setup      # Configure preferences
 
 ### Linux
 - `git`, `jq`, `curl`
-- Google Gemini API key
+- API key (Gemini or OpenAI)
 
 ### Windows
 - Git for Windows
-- PowerShell 5.1+ (built-in on Windows 10/11)
-- Google Gemini API key
+- PowerShell 5.1+
+- API key (Gemini or OpenAI)
 
 ---
 
@@ -159,28 +157,18 @@ commit-ai --setup      # Configure preferences
 
 ```
 commit-ai/
-├── any-linux/          # Linux scripts
-│   ├── commit-ai.sh    # Main script
-│   └── install.sh      # Installer
-├── arch-linux/         # AUR package
+├── any-linux/
+│   ├── commit-ai.sh
+│   └── install.sh
+├── arch-linux/
 │   ├── PKGBUILD
 │   └── .SRCINFO
-├── windows/            # Windows scripts
-│   ├── commit-ai.ps1   # Main script
-│   ├── commit-ai.bat   # Batch wrapper
-│   └── install.ps1     # Installer
-├── docs/               # Website
-└── .commit-ai.conf.example
+├── windows/
+│   ├── commit-ai.ps1
+│   ├── commit-ai.bat
+│   └── install.ps1
+└── docs/
 ```
-
----
-
-## 🛡️ Security
-
-- ❌ API keys are never hardcoded
-- ✅ Can store API key in config file or env var
-- ✅ Only staged diffs are sent
-- ✅ Fully local execution
 
 ---
 
@@ -190,14 +178,10 @@ MIT License © 2025
 
 ## 🤝 Contributing
 
-Pull requests are welcome!
+Pull requests welcome!
 
-**Ideas:**
-- Git hook support (`prepare-commit-msg`)
-- Model selection flag
-- Shell completion
-
-## ⭐ Acknowledgments
+## ⭐ Credits
 
 - [Gitmoji](https://gitmoji.dev/)
 - [Google Gemini](https://deepmind.google/technologies/gemini/)
+- [OpenAI](https://openai.com/)
