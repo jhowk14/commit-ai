@@ -8,6 +8,7 @@ Generate high-quality Git commit messages automatically using AI (Google Gemini 
 - 🔌 **Multi-provider**: Gemini & OpenAI support
 - 🎨 Gitmoji mode (`-e`)
 - 📦 Conventional Commits mode (default)
+- 💬 **Context hints** for better messages (`-m`)
 - 🔧 Persistent configuration
 - ⚙️ Interactive setup (`--setup`)
 - 📝 **Custom prompts** for advanced users
@@ -89,6 +90,8 @@ commit-ai
 commit-ai              # Use defaults
 commit-ai -e           # Gitmoji format
 commit-ai -c           # Conventional format
+commit-ai -m "fix login bug"  # Provide context to AI
+commit-ai -e -m "new feature" # Gitmoji with hint
 commit-ai -C           # Use custom prompt
 commit-ai -e -p        # Preview only
 commit-ai -y           # Auto-commit
@@ -104,6 +107,7 @@ commit-ai --edit-prompt # Edit custom prompt
 |------|-------------|
 | `-e`, `--emoji` | Use Gitmoji format |
 | `-c`, `--conv` | Use Conventional format |
+| `-m`, `--message` | Provide context/hint for AI |
 | `-C`, `--custom` | Use custom prompt file |
 | `-p`, `--preview` | Preview only |
 | `-y`, `--yes` | Skip confirmation |
@@ -125,6 +129,7 @@ USAGE:
 OPTIONS:
   -e, --emoji       Use Gitmoji commit format (emoji prefix)
   -c, --conv        Use Conventional Commits format (overrides config)
+  -m, --message     Provide context/hint for AI (e.g., -m "fix login bug")
   -C, --custom      Use custom prompt file (~/.commit-ai-prompt.txt)
   -p, --preview     Preview commit message only (no commit)
   -y, --yes         Skip confirmation prompt (auto-commit)
@@ -140,13 +145,15 @@ PROVIDERS:
   openai            OpenAI GPT models
 
 EXAMPLES:
-  commit-ai              # Use configured defaults
-  commit-ai -e           # Gitmoji format
-  commit-ai -c           # Conventional format
-  commit-ai -e -p        # Preview Gitmoji message
-  commit-ai -y           # Auto-commit without confirmation
-  commit-ai --setup      # Configure preferences
-  commit-ai --edit-prompt # Customize AI prompt
+  commit-ai                          # Use configured defaults
+  commit-ai -e                       # Gitmoji format
+  commit-ai -c                       # Conventional format
+  commit-ai -m "added user auth"     # AI uses hint for better message
+  commit-ai -e -m "refactored api"   # Gitmoji with context
+  commit-ai -e -p                    # Preview Gitmoji message
+  commit-ai -y                       # Auto-commit without confirmation
+  commit-ai --setup                  # Configure preferences
+  commit-ai --edit-prompt            # Customize AI prompt
 
 CONFIG FILE:
   Location: ~/.commit-ai.conf

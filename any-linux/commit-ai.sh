@@ -25,6 +25,7 @@ EDIT_PROMPT=false
 PROVIDER="gemini"
 ASK_PUSH=false
 USE_CUSTOM_PROMPT=false
+USER_MESSAGE=""
 # =========================================
 
 # -------------------------------------------------
@@ -424,6 +425,7 @@ OPTIONS:
   -e, --emoji       Use Gitmoji commit format (emoji prefix)
   -c, --conv        Use Conventional Commits format (overrides config)
   -C, --custom      Use custom prompt file (~/.commit-ai-prompt.txt)
+  -m, --message     Provide context/hint for AI (e.g., -m "fix login bug")
   -p, --preview     Preview commit message only (no commit)
   -y, --yes         Skip confirmation prompt (auto-commit)
   -u, --undo        Undo last commit (soft reset, keeps changes staged)
@@ -438,12 +440,14 @@ PROVIDERS:
   openai            OpenAI GPT models
 
 EXAMPLES:
-  commit-ai              # Use configured defaults
-  commit-ai -e           # Gitmoji format
-  commit-ai -c           # Conventional format
-  commit-ai -e -p        # Preview Gitmoji message
-  commit-ai -y           # Auto-commit without confirmation
-  commit-ai --setup      # Configure preferences
+  commit-ai                          # Use configured defaults
+  commit-ai -e                       # Gitmoji format
+  commit-ai -c                       # Conventional format
+  commit-ai -m "added user auth"     # AI uses hint for better message
+  commit-ai -e -m "refactored api"   # Gitmoji with context
+  commit-ai -e -p                    # Preview Gitmoji message
+  commit-ai -y                       # Auto-commit without confirmation
+  commit-ai --setup                  # Configure preferences
   commit-ai --edit-prompt # Customize AI prompt
 
 CONFIG FILE:
@@ -478,8 +482,8 @@ show_version() {
 load_config
 
 # Parse flags (override config)
-for arg in "$@"; do
-  case $arg in
+while [[ $# -gt 0 ]]; do
+  case $1 in
     --help|-h) show_help ;;
     --version|-v) show_version ;;
     --yes|-y) AUTO_YES=true ;;
@@ -491,7 +495,12 @@ for arg in "$@"; do
     --setup|-s) SETUP_MODE=true ;;
     --config) SHOW_CONFIG=true ;;
     --edit-prompt) EDIT_PROMPT=true ;;
+    --message|-m)
+      shift
+      USER_MESSAGE="$1"
+      ;;
   esac
+  shift
 done
 
 # Handle mode flags (--conv overrides gitmoji default)
@@ -567,9 +576,18 @@ if $USE_CUSTOM_PROMPT && [ -f "$CUSTOM_PROMPT_FILE" ]; then
   PROMPT="${PROMPT//\{FILES\}/$FILES}"
   PROMPT="${PROMPT//\{DIFF\}/$DIFF}"
 elif $EMOJI_MODE; then
+  USER_HINT=""
+  if [ -n "$USER_MESSAGE" ]; then
+    USER_HINT="
+User context/hint for this commit:
+$USER_MESSAGE
+
+Use this hint to better understand the intent and generate a more accurate commit message.
+"
+  fi
   PROMPT=$(cat <<EOF
 You are a senior Git and Gitmoji expert.
-
+$USER_HINT
 Recent commit history:
 $HISTORY
 
@@ -591,9 +609,18 @@ MANDATORY RULES:
 EOF
 )
 else
+  USER_HINT=""
+  if [ -n "$USER_MESSAGE" ]; then
+    USER_HINT="
+User context/hint for this commit:
+$USER_MESSAGE
+
+Use this hint to better understand the intent and generate a more accurate commit message.
+"
+  fi
   PROMPT=$(cat <<EOF
 You are a senior Git and Conventional Commits expert.
-
+$USER_HINT
 Recent commit history:
 $HISTORY
 

@@ -115,6 +115,11 @@
           <p>Standard Conventional Commits format</p>
         </div>
         <div class="feature-card">
+          <span class="feature-icon">💬</span>
+          <h3>Context Hints</h3>
+          <p>Provide hints for better AI messages</p>
+        </div>
+        <div class="feature-card">
           <span class="feature-icon">⚙️</span>
           <h3>Configurable</h3>
           <p>Persistent settings with interactive setup</p>
@@ -123,11 +128,6 @@
           <span class="feature-icon">🐧🪟</span>
           <h3>Cross-Platform</h3>
           <p>Works on Linux & Windows</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-icon">🧠</span>
-          <h3>Context Aware</h3>
-          <p>Uses your commit history as reference</p>
         </div>
       </div>
     </section>
@@ -158,6 +158,12 @@
             </div>
             <div class="terminal-line output">
               <span class="generated">✨ Add user authentication with OAuth2</span>
+            </div>
+            <div class="terminal-line">
+              <span class="prompt">$</span> commit-ai -m "fixed login bug"
+            </div>
+            <div class="terminal-line output">
+              <span class="generated">fix: resolve login authentication failure</span>
             </div>
             <div class="terminal-line">
               <span class="prompt">$</span> commit-ai --setup
@@ -310,6 +316,10 @@
         <div class="option-card">
           <code class="option-flag">-c, --conv</code>
           <p>Use Conventional Commits format</p>
+        </div>
+        <div class="option-card">
+          <code class="option-flag">-m, --message</code>
+          <p>Provide context/hint for AI</p>
         </div>
         <div class="option-card">
           <code class="option-flag">-p, --preview</code>

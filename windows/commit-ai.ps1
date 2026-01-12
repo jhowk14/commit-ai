@@ -7,6 +7,7 @@ param(
     [Alias('y')][switch]$Yes,
     [Alias('u')][switch]$Undo,
     [Alias('s')][switch]$Setup,
+    [Alias('m')][string]$Message,
     [switch]$Config,
     [switch]$EditPrompt,
     [Alias('h')][switch]$Help,
@@ -430,6 +431,7 @@ USAGE:
 OPTIONS:
   -Emoji, -e        Use Gitmoji commit format (emoji prefix)
   -Conv, -c         Use Conventional Commits format (overrides config)
+  -Message, -m      Provide context/hint for AI (e.g., -m "fix login bug")
   -Preview, -p      Preview commit message only (no commit)
   -Yes, -y          Skip confirmation prompt (auto-commit)
   -Undo, -u         Undo last commit (soft reset, keeps changes staged)
@@ -444,12 +446,14 @@ PROVIDERS:
   openai            OpenAI GPT models
 
 EXAMPLES:
-  .\commit-ai.ps1              # Use configured defaults
-  .\commit-ai.ps1 -Emoji       # Gitmoji format
-  .\commit-ai.ps1 -c           # Conventional format
-  .\commit-ai.ps1 -e -p        # Preview Gitmoji message
-  .\commit-ai.ps1 -Setup       # Configure preferences
-  .\commit-ai.ps1 -EditPrompt  # Customize AI prompt
+  .\commit-ai.ps1                          # Use configured defaults
+  .\commit-ai.ps1 -Emoji                   # Gitmoji format
+  .\commit-ai.ps1 -c                       # Conventional format
+  .\commit-ai.ps1 -m "added user auth"     # AI uses hint for better message
+  .\commit-ai.ps1 -e -m "refactored api"   # Gitmoji with context
+  .\commit-ai.ps1 -e -p                    # Preview Gitmoji message
+  .\commit-ai.ps1 -Setup                   # Configure preferences
+  .\commit-ai.ps1 -EditPrompt              # Customize AI prompt
 
 CONFIG FILE:
   Location: ~/.commit-ai.conf
@@ -542,9 +546,20 @@ if (Test-Path $CUSTOM_PROMPT_FILE) {
     $PROMPT = $PROMPT -replace '\{FILES\}', $FILES
     $PROMPT = $PROMPT -replace '\{DIFF\}', $DIFF
 } elseif ($script:EMOJI_MODE) {
+    $USER_HINT = ""
+    if (-not [string]::IsNullOrWhiteSpace($Message)) {
+        $USER_HINT = @"
+
+User context/hint for this commit:
+$Message
+
+Use this hint to better understand the intent and generate a more accurate commit message.
+
+"@
+    }
     $PROMPT = @"
 You are a senior Git and Gitmoji expert.
-
+$USER_HINT
 Recent commit history:
 $HISTORY
 
@@ -565,9 +580,20 @@ MANDATORY RULES:
 - Return ONLY the final commit message
 "@
 } else {
+    $USER_HINT = ""
+    if (-not [string]::IsNullOrWhiteSpace($Message)) {
+        $USER_HINT = @"
+
+User context/hint for this commit:
+$Message
+
+Use this hint to better understand the intent and generate a more accurate commit message.
+
+"@
+    }
     $PROMPT = @"
 You are a senior Git and Conventional Commits expert.
-
+$USER_HINT
 Recent commit history:
 $HISTORY
 
