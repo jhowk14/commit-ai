@@ -1,0 +1,3 @@
+[submodule "arch-linux"]
+    path = arch-linux
+    url = ssh://aur@aur.archlinux.org/commit-ai.git
