@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# commit-ai
+# Copyright (c) 2026 Jonathan Henrique Perozi Lourenço (jhowk14)
+# Licensed under the MIT License
+
 set -e
 
 # ================= CONFIG =================

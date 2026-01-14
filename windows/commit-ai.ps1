@@ -1,3 +1,23 @@
+<#
+.SYNOPSIS
+  commit-ai – AI-powered commit message generator.
+
+.DESCRIPTION
+  commit-ai generates conventional commit messages using AI providers
+  based on the current staged git changes.
+
+.AUTHOR
+  Jonathan Henrique Perozi Lourenço (jhowk14)
+
+.LICENSE
+  MIT License
+
+.COPYRIGHT
+  Copyright (c) 2026 Jonathan Henrique Perozi Lourenço (jhowk14)
+#>
+
+# Licensed under the MIT License
+
 #Requires -Version 5.1
 [CmdletBinding()]
 param(
