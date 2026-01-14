@@ -254,3 +254,5 @@ Pull requests welcome!
 - [Gitmoji](https://gitmoji.dev/)
 - [Google Gemini](https://deepmind.google/technologies/gemini/)
 - [OpenAI](https://openai.com/)
+
+git remote add aur ssh://aur@aur.archlinux.org/commit-ai.git
