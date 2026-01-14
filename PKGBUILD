@@ -7,7 +7,7 @@ url="https://jhowk14.github.io/commit-ai/"
 license=('MIT')
 depends=('git' 'jq' 'curl')
 
-source=("commit-ai.sh")
+source=("commit-ai.sh::https://raw.githubusercontent.com/jhowk14/commit-ai/v${pkgver}/any-linux/commit-ai.sh")
 sha256sums=('SKIP')
 
 package() {

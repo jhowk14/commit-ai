@@ -8,7 +8,7 @@ pkgbase = commit-ai
 	depends = git
 	depends = jq
 	depends = curl
-	source = commit-ai.sh
+	source = commit-ai.sh::https://raw.githubusercontent.com/jhowk14/commit-ai/v1.2.0/any-linux/commit-ai.sh
 	sha256sums = SKIP
 
 pkgname = commit-ai
