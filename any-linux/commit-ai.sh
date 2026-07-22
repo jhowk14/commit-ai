@@ -1,12 +1,8 @@
 #!/usr/bin/env bash
-# commit-ai
-# Copyright (c) 2026 Jonathan Henrique Perozi Lourenço (jhowk14)
-# Licensed under the MIT License
-
 set -e
 
 # ================= CONFIG =================
-VERSION="1.3.0"
+VERSION="1.5.0"
 MAX_CHARS=14000
 CONFIG_FILE="$HOME/.commit-ai.conf"
 CUSTOM_PROMPT_FILE="$HOME/.commit-ai-prompt.txt"
@@ -14,11 +10,13 @@ CUSTOM_PROMPT_FILE="$HOME/.commit-ai-prompt.txt"
 # Defaults
 DEFAULT_FORMAT="conventional"
 DEFAULT_AUTO_CONFIRM="false"
+DEFAULT_AUTO_SYNC="false"
 DEFAULT_PROVIDER="gemini"
 DEFAULT_MODEL="gemini-3-flash-preview"
 
 # Runtime
 AUTO_YES=false
+SYNC_MODE=false
 PREVIEW_ONLY=false
 UNDO_LAST=false
 EMOJI_MODE=false
@@ -30,6 +28,7 @@ PROVIDER="gemini"
 ASK_PUSH=false
 USE_CUSTOM_PROMPT=false
 USER_MESSAGE=""
+TARGET_BRANCH=""
 # =========================================
 
 # -------------------------------------------------
@@ -50,6 +49,9 @@ load_config() {
           ;;
         auto_confirm)
           [[ "$value" == "true" ]] && AUTO_YES=true
+          ;;
+        auto_sync)
+          [[ "$value" == "true" ]] && SYNC_MODE=true
           ;;
         ask_push)
           [[ "$value" == "true" ]] && ASK_PUSH=true
@@ -430,10 +432,12 @@ OPTIONS:
   -c, --conv        Use Conventional Commits format (overrides config)
   -C, --custom      Use custom prompt file (~/.commit-ai-prompt.txt)
   -m, --message     Provide context/hint for AI (e.g., -m "fix login bug")
+  -b, --branch      Create to branch and deploy (e.g. -b feature-name)
   -p, --preview     Preview commit message only (no commit)
   -y, --yes         Skip confirmation prompt (auto-commit)
+  -s, -S, --sync    Auto sync remote (git add -> stash -> pull -> stash pop -> add) before commit
   -u, --undo        Undo last commit (soft reset, keeps changes staged)
-  -s, --setup       Interactive configuration setup
+  --setup           Interactive configuration setup
   --config          Show current configuration
   --edit-prompt     Edit custom prompt for advanced users
   -h, --help        Show this help message
@@ -446,33 +450,14 @@ PROVIDERS:
 EXAMPLES:
   commit-ai                          # Use configured defaults
   commit-ai -e                       # Gitmoji format
-  commit-ai -c                       # Conventional format
+  commit-ai -b "new-feature"         # Create/switch to new-feature, commit, and push
   commit-ai -m "added user auth"     # AI uses hint for better message
   commit-ai -e -m "refactored api"   # Gitmoji with context
   commit-ai -e -p                    # Preview Gitmoji message
   commit-ai -y                       # Auto-commit without confirmation
-  commit-ai --setup                  # Configure preferences
-  commit-ai --edit-prompt # Customize AI prompt
 
 CONFIG FILE:
   Location: ~/.commit-ai.conf
-  
-  Available settings:
-    format=conventional|gitmoji
-    auto_confirm=true|false
-    ask_push=true|false
-    use_custom_prompt=true|false
-    provider=gemini|openai
-    model=<model-name>
-    gemini_api_key=your_key
-    openai_api_key=your_key
-
-ENVIRONMENT:
-  GEMINI_API_KEY     Google Gemini API key
-  OPENAI_API_KEY     OpenAI API key
-
-MORE INFO:
-  https://github.com/jhowk14/commit-ai
 EOF
   exit 0
 }
@@ -491,14 +476,19 @@ while [[ $# -gt 0 ]]; do
     --help|-h) show_help ;;
     --version|-v) show_version ;;
     --yes|-y) AUTO_YES=true ;;
+    --sync|-s|-S) SYNC_MODE=true ;;
     --preview|-p) PREVIEW_ONLY=true ;;
     --undo|-u) UNDO_LAST=true ;;
     --emoji|-e) EMOJI_MODE=true ;;
     --conv|-c) CONVENTIONAL_MODE=true ;;
     --custom|-C) USE_CUSTOM_PROMPT=true ;;
-    --setup|-s) SETUP_MODE=true ;;
+    --setup) SETUP_MODE=true ;;
     --config) SHOW_CONFIG=true ;;
     --edit-prompt) EDIT_PROMPT=true ;;
+    --branch|-b)
+      shift
+      TARGET_BRANCH="$1"
+      ;;
     --message|-m)
       shift
       USER_MESSAGE="$1"
@@ -553,6 +543,52 @@ else
     echo "   export GEMINI_API_KEY=\"your_api_key\""
     exit 1
   fi
+fi
+
+# -------------------------------------------------
+# CHECKOUT/CREATE TARGET BRANCH & AUTO-DETECT CURRENT
+# -------------------------------------------------
+ACTIVE_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+if [ -z "$TARGET_BRANCH" ]; then
+  TARGET_BRANCH="$ACTIVE_BRANCH"
+else
+  if git show-ref --verify --quiet "refs/heads/$TARGET_BRANCH"; then
+    echo "🔀 Mudando para a branch existente '$TARGET_BRANCH'..."
+    git checkout "$TARGET_BRANCH"
+  else
+    echo "🌱 Criando e mudando para a nova branch '$TARGET_BRANCH'..."
+    git checkout -b "$TARGET_BRANCH"
+  fi
+  echo
+fi
+
+# -------------------------------------------------
+# AUTO SYNC REMOTE (ADD -> STASH -> PULL -> POP -> ADD)
+# -------------------------------------------------
+if $SYNC_MODE; then
+  CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+  echo "🔄 Auto-sync ativado. Sincronizando com a branch remota origin/$CURRENT_BRANCH..."
+
+  # Adiciona tudo para verificar modificações
+  git add .
+
+  HAD_STASH=false
+  if ! git diff --cached --quiet || ! git diff --quiet; then
+    echo "📦 Guardando alterações locais temporariamente (git stash)..."
+    git stash push -u -m "commit-ai-auto-stash" >/dev/null 2>&1 && HAD_STASH=true || HAD_STASH=false
+  fi
+
+  echo "⬇️ Baixando atualizações remotas (git pull origin $CURRENT_BRANCH)..."
+  git pull origin "$CURRENT_BRANCH" --rebase >/dev/null 2>&1 || git pull origin "$CURRENT_BRANCH" >/dev/null 2>&1 || true
+
+  if $HAD_STASH; then
+    echo "📂 Restaurando alterações salvas (git stash pop)..."
+    git stash pop >/dev/null 2>&1 || true
+  fi
+
+  echo "➕ Adicionando arquivos para staging (git add .)..."
+  git add .
+  echo
 fi
 
 # -------------------------------------------------
@@ -741,17 +777,24 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "  ✅ Commit created successfully!"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-# Ask to push if configured
-if $ASK_PUSH; then
+# Auto push to target/current branch
+if [ -n "$TARGET_BRANCH" ]; then
   echo
-  read -p "🚀 Push to remote? (y/n): " push_choice
+  echo "🚀 Enviando alterações para origin/$TARGET_BRANCH..."
+  git push -u origin "$TARGET_BRANCH" || git push origin "$TARGET_BRANCH"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "  🚀 Enviado para origin/$TARGET_BRANCH com sucesso!"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+elif $ASK_PUSH; then
+  echo
+  read -p "🚀 Push para o repositório remoto? (y/n): " push_choice
   case "$push_choice" in
     y|Y|yes|YES)
       echo
       git push
       echo
       echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-      echo "  🚀 Pushed to remote!"
+      echo "  🚀 Pushed para o repositório remoto com sucesso!"
       echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       ;;
   esac

@@ -182,8 +182,8 @@ function Interactive-Setup {
 
     # Format selection with validation
     Write-Host "📝 Commit format:" -ForegroundColor Yellow
-    Write-Host "   1) conventional (feat:, fix:, etc.)"
-    Write-Host "   2) gitmoji (✨, 🐛, etc.)"
+    Write-Host "   1) conventional `(feat:, fix:, etc.`)"
+    Write-Host "   2) gitmoji `(emoji prefix`)"
     Write-Host
     do {
         $formatChoice = Read-Host "Choose format [current: $currentFormat] (1/2)"
@@ -591,7 +591,7 @@ $DIFF
 
 MANDATORY RULES:
 - Choose ONLY ONE gitmoji (emoji)
-- EXACT format: <emoji><space><Message>
+- EXACT format: emoji space Message
 - First letter MUST be CAPITALIZED
 - Message in English
 - Use imperative mood
@@ -625,7 +625,7 @@ $DIFF
 
 MANDATORY RULES:
 - Choose ONE action type
-- EXACT format: <type>: <message>
+- EXACT format: type: message
 - Message starts with lowercase
 - Message in English
 - Use imperative mood
