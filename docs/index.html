@@ -9,9 +9,9 @@
   <title>commit-ai — AI-Powered Git Commit Messages 🚀</title>
   <meta name="title" content="commit-ai — AI-Powered Git Commit Messages 🚀">
   <meta name="description"
-    content="Generate perfect Git commit messages in seconds! AI-powered by Gemini & OpenAI with Gitmoji 🎨 and Conventional Commits 📦 support. Works on Linux & Windows.">
+    content="Generate perfect Git commit messages in seconds! AI-powered by Gemini & OpenAI with Gitmoji 🎨, Conventional Commits 📦, and Auto-Sync 🔄 support. Works on Linux & Windows.">
   <meta name="keywords"
-    content="git, commit, ai, gemini, openai, gpt, gitmoji, conventional commits, automation, bash, powershell, linux, windows, developer tools, productivity">
+    content="git, commit, ai, gemini, openai, gpt, gitmoji, conventional commits, auto-sync, automation, bash, powershell, linux, windows, developer tools, productivity">
   <meta name="author" content="jhowk14">
   <meta name="robots" content="index, follow">
 
@@ -20,7 +20,7 @@
   <meta property="og:url" content="https://jhowk14.github.io/commit-ai/">
   <meta property="og:title" content="commit-ai — AI-Powered Git Commit Messages 🚀">
   <meta property="og:description"
-    content="Generate perfect Git commit messages in seconds! AI-powered by Google Gemini.">
+    content="Generate perfect Git commit messages in seconds! AI-powered by Google Gemini & OpenAI with Auto-Sync support.">
   <meta property="og:image" content="https://jhowk14.github.io/commit-ai/og-image.png">
 
   <!-- Twitter Card -->
@@ -46,12 +46,12 @@
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "commit-ai",
-    "description": "Generate high-quality Git commit messages automatically using Google Gemini.",
+    "description": "Generate high-quality Git commit messages automatically using Google Gemini & OpenAI.",
     "url": "https://jhowk14.github.io/commit-ai/",
     "applicationCategory": "DeveloperApplication",
     "operatingSystem": ["Linux", "Windows"],
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-    "softwareVersion": "1.3.0"
+    "softwareVersion": "1.5.0"
   }
   </script>
 </head>
@@ -70,7 +70,7 @@
 
     <div class="hero-content">
       <h1 class="logo">commit<span class="logo-emoji">🤖</span>ai</h1>
-      <p class="tagline">AI-powered Git commit messages with Gemini & OpenAI</p>
+      <p class="tagline">AI-powered Git commit messages with Gemini, OpenAI & Auto-Sync 🔄</p>
 
       <div class="cta-buttons">
         <a href="https://github.com/jhowk14/commit-ai" class="btn btn-primary" target="_blank">
@@ -78,7 +78,7 @@
             <path
               d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
           </svg>
-          GitHub
+          GitHub v1.5.0
         </a>
         <a href="#install" class="btn btn-secondary">Get Started</a>
       </div>
@@ -105,6 +105,16 @@
           <p>Supports Google Gemini & OpenAI GPT models</p>
         </div>
         <div class="feature-card">
+          <span class="feature-icon">🔄</span>
+          <h3>Auto-Sync Remote</h3>
+          <p>Stash, pull, pop & add automatically before commit</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">🔀</span>
+          <h3>Branch Deploy</h3>
+          <p>Auto-detects active branch or creates target branch</p>
+        </div>
+        <div class="feature-card">
           <span class="feature-icon">🎨</span>
           <h3>Gitmoji Mode</h3>
           <p>Beautiful emoji-prefixed commits</p>
@@ -118,16 +128,6 @@
           <span class="feature-icon">💬</span>
           <h3>Context Hints</h3>
           <p>Provide hints for better AI messages</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-icon">⚙️</span>
-          <h3>Configurable</h3>
-          <p>Persistent settings with interactive setup</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-icon">🐧🪟</span>
-          <h3>Cross-Platform</h3>
-          <p>Works on Linux & Windows</p>
         </div>
       </div>
     </section>
@@ -145,31 +145,22 @@
           </div>
           <div class="terminal-body">
             <div class="terminal-line">
-              <span class="prompt">$</span> git add .
-            </div>
-            <div class="terminal-line">
-              <span class="prompt">$</span> commit-ai
+              <span class="prompt">$</span> commit-ai -c -s
             </div>
             <div class="terminal-line output">
-              <span class="generated">feat: add user authentication with OAuth2</span>
-            </div>
-            <div class="terminal-line">
-              <span class="prompt">$</span> commit-ai -e
+              <span class="generated">🔄 Syncing with remote origin/main...</span>
             </div>
             <div class="terminal-line output">
-              <span class="generated">✨ Add user authentication with OAuth2</span>
-            </div>
-            <div class="terminal-line">
-              <span class="prompt">$</span> commit-ai -m "fixed login bug"
+              <span class="generated">feat: add document parser route for large file attachments</span>
             </div>
             <div class="terminal-line output">
-              <span class="generated">fix: resolve login authentication failure</span>
+              <span class="generated">🚀 Pushed to origin/main successfully!</span>
             </div>
             <div class="terminal-line">
-              <span class="prompt">$</span> commit-ai --setup
+              <span class="prompt">$</span> commit-ai -s -c -b new-feature
             </div>
             <div class="terminal-line output">
-              <span class="generated">🔧 Interactive configuration wizard...</span>
+              <span class="generated">🌱 Switching to new-feature & deploying...</span>
             </div>
           </div>
         </div>
@@ -279,16 +270,16 @@
           </div>
           <div class="terminal-body">
             <div class="terminal-line config">
-              <span class="config-key">format</span>=<span class="config-value">gitmoji</span>
+              <span class="config-key">format</span>=<span class="config-value">conventional</span>
             </div>
             <div class="terminal-line config">
               <span class="config-key">auto_confirm</span>=<span class="config-value">false</span>
             </div>
             <div class="terminal-line config">
-              <span class="config-key">ask_push</span>=<span class="config-value">false</span>
+              <span class="config-key">auto_sync</span>=<span class="config-value">true</span>
             </div>
             <div class="terminal-line config">
-              <span class="config-key">use_custom_prompt</span>=<span class="config-value">false</span>
+              <span class="config-key">ask_push</span>=<span class="config-value">false</span>
             </div>
             <div class="terminal-line config">
               <span class="config-key">provider</span>=<span class="config-value">gemini</span>
@@ -306,16 +297,20 @@
       <h2 class="section-title">Options</h2>
       <div class="options-grid">
         <div class="option-card">
-          <code class="option-flag">-s, --setup</code>
-          <p>Interactive configuration wizard</p>
+          <code class="option-flag">-s, -S, --sync</code>
+          <p>Auto sync remote before commit (stash, pull, pop, add)</p>
         </div>
         <div class="option-card">
-          <code class="option-flag">-e, --emoji</code>
-          <p>Use Gitmoji commit format</p>
+          <code class="option-flag">-b, --branch</code>
+          <p>Switch or create target branch & auto-push</p>
         </div>
         <div class="option-card">
           <code class="option-flag">-c, --conv</code>
           <p>Use Conventional Commits format</p>
+        </div>
+        <div class="option-card">
+          <code class="option-flag">-e, --emoji</code>
+          <p>Use Gitmoji commit format</p>
         </div>
         <div class="option-card">
           <code class="option-flag">-m, --message</code>
@@ -328,6 +323,10 @@
         <div class="option-card">
           <code class="option-flag">-y, --yes</code>
           <p>Skip confirmation prompt</p>
+        </div>
+        <div class="option-card">
+          <code class="option-flag">--setup</code>
+          <p>Interactive configuration wizard</p>
         </div>
         <div class="option-card">
           <code class="option-flag">--config</code>
@@ -344,14 +343,6 @@
         <div class="option-card">
           <code class="option-flag">--edit-prompt</code>
           <p>Edit custom AI prompt file</p>
-        </div>
-        <div class="option-card">
-          <code class="option-flag">-h, --help</code>
-          <p>Show help message</p>
-        </div>
-        <div class="option-card">
-          <code class="option-flag">-v, --version</code>
-          <p>Show version number</p>
         </div>
       </div>
     </section>
@@ -374,14 +365,6 @@
       });
     });
 
-    // Copy code functionality (legacy)
-    function copyCode(btn) {
-      const code = btn.closest('.terminal').querySelector('.terminal-body').innerText;
-      navigator.clipboard.writeText(code);
-      btn.textContent = 'Copied!';
-      setTimeout(() => btn.textContent = 'Copy', 2000);
-    }
-
     // Copy terminal commands (removes $ and PS> prompts)
     function copyTerminal(btn) {
       const lines = btn.closest('.terminal').querySelectorAll('.terminal-line');
@@ -389,7 +372,6 @@
       lines.forEach(line => {
         if (!line.classList.contains('comment') && !line.classList.contains('output')) {
           let text = line.textContent.trim();
-          // Remove $ or PS> prompt
           text = text.replace(/^\$\s*/, '').replace(/^PS>\s*/, '');
           if (text) commands.push(text);
         }
