@@ -3,7 +3,7 @@
   commit-ai – AI-powered commit message generator.
 
 .DESCRIPTION
-  commit-ai generates conventional commit messages using AI providers
+  commit-ai generates conventional commit messages using AI providers (Gemini, OpenAI, or any OpenAI-compatible provider)
   based on the current staged git changes.
 
 .AUTHOR
@@ -21,23 +21,25 @@
 #Requires -Version 5.1
 [CmdletBinding()]
 param(
-    [Alias('e')][switch]$Emoji,
-    [Alias('c')][switch]$Conv,
-    [Alias('p')][switch]$Preview,
-    [Alias('y')][switch]$Yes,
-    [Alias('u')][switch]$Undo,
-    [Alias('s')][switch]$Setup,
-    [Alias('m')][string]$Message,
+    [Alias("e")][switch]$Emoji,
+    [Alias("c")][switch]$Conv,
+    [Alias("p")][switch]$Preview,
+    [Alias("y")][switch]$Yes,
+    [Alias("u")][switch]$Undo,
+    [Alias("s")][switch]$Setup,
+    [Alias("m")][string]$Message,
+    [Alias("b")][string]$Branch,
+    [Alias("B")][string]$BaseUrl,
     [switch]$Config,
     [switch]$EditPrompt,
-    [Alias('h')][switch]$Help,
-    [Alias('v')][switch]$Version
+    [Alias("h")][switch]$Help,
+    [Alias("v")][switch]$Version
 )
 
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = "Stop"
 
 # ================= CONFIG =================
-$SCRIPT_VERSION = "1.3.0"
+$SCRIPT_VERSION = "1.6.0"
 $MAX_CHARS = 14000
 $CONFIG_FILE = Join-Path $HOME ".commit-ai.conf"
 $CUSTOM_PROMPT_FILE = Join-Path $HOME ".commit-ai-prompt.txt"
@@ -45,6 +47,7 @@ $CUSTOM_PROMPT_FILE = Join-Path $HOME ".commit-ai-prompt.txt"
 # Defaults
 $script:PROVIDER = "gemini"
 $script:DEFAULT_MODEL = "gemini-3-flash-preview"
+$script:OPENAI_BASE_URL = "https://api.openai.com/v1"
 $script:EMOJI_MODE = $false
 $script:AUTO_YES = $false
 $script:ASK_PUSH = $false
@@ -57,35 +60,41 @@ function Load-Config {
     if (Test-Path $CONFIG_FILE) {
         Get-Content $CONFIG_FILE | ForEach-Object {
             $line = $_.Trim()
-            if ($line -match '^#' -or [string]::IsNullOrWhiteSpace($line)) { return }
+            if ($line -match "^#" -or [string]::IsNullOrWhiteSpace($line)) { return }
             
-            $parts = $line -split '=', 2
+            $parts = $line -split "=", 2
             if ($parts.Count -eq 2) {
                 $key = $parts[0].Trim()
                 $value = $parts[1].Trim()
                 
                 switch ($key) {
-                    'format' { 
-                        if ($value -eq 'gitmoji') { $script:EMOJI_MODE = $true }
+                    "format" { 
+                        if ($value -eq "gitmoji") { $script:EMOJI_MODE = $true }
                     }
-                    'auto_confirm' { 
-                        if ($value -eq 'true') { $script:AUTO_YES = $true }
+                    "auto_confirm" { 
+                        if ($value -eq "true") { $script:AUTO_YES = $true }
                     }
-                    'ask_push' { 
-                        if ($value -eq 'true') { $script:ASK_PUSH = $true }
+                    "ask_push" { 
+                        if ($value -eq "true") { $script:ASK_PUSH = $true }
                     }
-                    'provider' {
+                    "provider" {
                         $script:PROVIDER = $value
                     }
-                    'model' { 
+                    "model" { 
                         $script:DEFAULT_MODEL = $value 
                     }
-                    'gemini_api_key' { 
+                    "openai_base_url" {
+                        $script:OPENAI_BASE_URL = $value
+                    }
+                    "base_url" {
+                        $script:OPENAI_BASE_URL = $value
+                    }
+                    "gemini_api_key" { 
                         if ([string]::IsNullOrEmpty($env:GEMINI_API_KEY)) {
                             $env:GEMINI_API_KEY = $value
                         }
                     }
-                    'openai_api_key' { 
+                    "openai_api_key" { 
                         if ([string]::IsNullOrEmpty($env:OPENAI_API_KEY)) {
                             $env:OPENAI_API_KEY = $value
                         }
@@ -107,11 +116,13 @@ function Save-Config {
         [string]$Provider,
         [string]$Model,
         [string]$GeminiKey,
-        [string]$OpenAIKey
+        [string]$OpenAIKey,
+        [string]$OpenAIBaseUrl
     )
 
     $geminiLine = if ($GeminiKey) { "gemini_api_key=$GeminiKey" } else { "# gemini_api_key=your_key_here" }
     $openaiLine = if ($OpenAIKey) { "openai_api_key=$OpenAIKey" } else { "# openai_api_key=your_key_here" }
+    $baseUrlVal = if ($OpenAIBaseUrl) { $OpenAIBaseUrl } else { "https://api.openai.com/v1" }
     
     $configContent = @"
 # commit-ai configuration
@@ -131,6 +142,9 @@ provider=$Provider
 
 # Model to use (depends on provider)
 model=$Model
+
+# Base URL for OpenAI-compatible providers
+openai_base_url=$baseUrlVal
 
 # API Keys (optional - can also use environment variables)
 $geminiLine
@@ -156,25 +170,28 @@ function Interactive-Setup {
     $currentPush = "false"
     $currentProvider = "gemini"
     $currentModel = "gemini-3-flash-preview"
+    $currentOpenAIBaseUrl = "https://api.openai.com/v1"
     $currentGeminiKey = ""
     $currentOpenAIKey = ""
 
     if (Test-Path $CONFIG_FILE) {
         Get-Content $CONFIG_FILE | ForEach-Object {
             $line = $_.Trim()
-            if ($line -match '^#' -or [string]::IsNullOrWhiteSpace($line)) { return }
-            $parts = $line -split '=', 2
+            if ($line -match "^#" -or [string]::IsNullOrWhiteSpace($line)) { return }
+            $parts = $line -split "=", 2
             if ($parts.Count -eq 2) {
                 $key = $parts[0].Trim()
                 $value = $parts[1].Trim()
                 switch ($key) {
-                    'format' { $currentFormat = $value }
-                    'auto_confirm' { $currentAuto = $value }
-                    'ask_push' { $currentPush = $value }
-                    'provider' { $currentProvider = $value }
-                    'model' { $currentModel = $value }
-                    'gemini_api_key' { $currentGeminiKey = $value }
-                    'openai_api_key' { $currentOpenAIKey = $value }
+                    "format" { $currentFormat = $value }
+                    "auto_confirm" { $currentAuto = $value }
+                    "ask_push" { $currentPush = $value }
+                    "provider" { $currentProvider = $value }
+                    "model" { $currentModel = $value }
+                    "openai_base_url" { $currentOpenAIBaseUrl = $value }
+                    "base_url" { $currentOpenAIBaseUrl = $value }
+                    "gemini_api_key" { $currentGeminiKey = $value }
+                    "openai_api_key" { $currentOpenAIKey = $value }
                 }
             }
         }
@@ -182,8 +199,8 @@ function Interactive-Setup {
 
     # Format selection with validation
     Write-Host "📝 Commit format:" -ForegroundColor Yellow
-    Write-Host "   1) conventional `(feat:, fix:, etc.`)"
-    Write-Host "   2) gitmoji `(emoji prefix`)"
+    Write-Host "   1) conventional (feat:, fix:, etc.)"
+    Write-Host "   2) gitmoji (emoji prefix)"
     Write-Host
     do {
         $formatChoice = Read-Host "Choose format [current: $currentFormat] (1/2)"
@@ -242,7 +259,7 @@ function Interactive-Setup {
     Write-Host
     Write-Host "🔌 AI Provider:" -ForegroundColor Yellow
     Write-Host "   1) Gemini (Google)"
-    Write-Host "   2) OpenAI (GPT)"
+    Write-Host "   2) OpenAI / OpenAI-Compatible (OpenAI, OpenRouter, Groq, DeepSeek, Ollama, Cerebras, LM Studio, etc.)"
     Write-Host
     do {
         $providerChoice = Read-Host "Choose provider [current: $currentProvider] (1/2)"
@@ -258,12 +275,58 @@ function Interactive-Setup {
         }
     } while (-not $valid)
 
+    # Base URL selection if OpenAI
+    $chosenPreset = "openai"
+    if ($currentProvider -eq "openai") {
+        Write-Host
+        Write-Host "🌐 OpenAI Endpoint / Base URL:" -ForegroundColor Yellow
+        Write-Host "   1) OpenAI Official (https://api.openai.com/v1)"
+        Write-Host "   2) OpenRouter (https://openrouter.ai/api/v1)"
+        Write-Host "   3) Groq (https://api.groq.com/openai/v1)"
+        Write-Host "   4) DeepSeek (https://api.deepseek.com/v1)"
+        Write-Host "   5) Ollama Local (http://localhost:11434/v1)"
+        Write-Host "   6) LM Studio / LocalAI (http://localhost:1234/v1)"
+        Write-Host "   7) Cerebras (https://api.cerebras.ai/v1)"
+        Write-Host "   8) Custom Base URL"
+        Write-Host
+        do {
+            $urlChoice = Read-Host "Choose endpoint [current: $currentOpenAIBaseUrl] (1-8)"
+            $valid = $true
+            switch ($urlChoice) {
+                "1" { $currentOpenAIBaseUrl = "https://api.openai.com/v1"; $chosenPreset = "openai" }
+                "2" { $currentOpenAIBaseUrl = "https://openrouter.ai/api/v1"; $chosenPreset = "openrouter" }
+                "3" { $currentOpenAIBaseUrl = "https://api.groq.com/openai/v1"; $chosenPreset = "groq" }
+                "4" { $currentOpenAIBaseUrl = "https://api.deepseek.com/v1"; $chosenPreset = "deepseek" }
+                "5" { $currentOpenAIBaseUrl = "http://localhost:11434/v1"; $chosenPreset = "ollama" }
+                "6" { $currentOpenAIBaseUrl = "http://localhost:1234/v1"; $chosenPreset = "lmstudio" }
+                "7" { $currentOpenAIBaseUrl = "https://api.cerebras.ai/v1"; $chosenPreset = "cerebras" }
+                "8" { 
+                    $customUrl = Read-Host "Enter custom Base URL"
+                    if ($customUrl) { $currentOpenAIBaseUrl = $customUrl }
+                    $chosenPreset = "custom"
+                }
+                "" { }
+                default {
+                    Write-Host "⚠️  Invalid option. Please enter 1-8." -ForegroundColor Yellow
+                    $valid = $false
+                }
+            }
+        } while (-not $valid)
+    }
+
     # Reset model to default if provider changed
     if ($oldProvider -ne $currentProvider) {
         if ($currentProvider -eq "gemini") {
             $currentModel = "gemini-3-flash-preview"
         } else {
-            $currentModel = "gpt-4o-mini"
+            switch ($chosenPreset) {
+                "openrouter" { $currentModel = "meta-llama/llama-3.3-70b-instruct" }
+                "groq" { $currentModel = "llama-3.3-70b-versatile" }
+                "deepseek" { $currentModel = "deepseek-chat" }
+                "ollama" { $currentModel = "llama3.2" }
+                "cerebras" { $currentModel = "llama-3.3-70b" }
+                default { $currentModel = "gpt-4o-mini" }
+            }
         }
     }
 
@@ -276,18 +339,10 @@ function Interactive-Setup {
         Write-Host "   3) gemini-2.0-flash"
         Write-Host "   4) gemini-2.5-pro-preview (advanced)"
         Write-Host "   5) Custom"
-    } else {
-        Write-Host "   1) gpt-4o-mini (fast, recommended)"
-        Write-Host "   2) gpt-4o (advanced)"
-        Write-Host "   3) gpt-4-turbo"
-        Write-Host "   4) gpt-3.5-turbo (legacy)"
-        Write-Host "   5) Custom"
-    }
-    Write-Host
-    do {
-        $modelChoice = Read-Host "Choose model [current: $currentModel] (1-5)"
-        $valid = $true
-        if ($currentProvider -eq "gemini") {
+        Write-Host
+        do {
+            $modelChoice = Read-Host "Choose model [current: $currentModel] (1-5)"
+            $valid = $true
             switch ($modelChoice) {
                 "1" { $currentModel = "gemini-3-flash-preview" }
                 "2" { $currentModel = "gemini-2.5-flash" }
@@ -300,21 +355,27 @@ function Interactive-Setup {
                     $valid = $false
                 }
             }
-        } else {
+        } while (-not $valid)
+    } else {
+        Write-Host "   1) gpt-4o-mini (fast, recommended)"
+        Write-Host "   2) gpt-4o (advanced)"
+        Write-Host "   3) Custom model name"
+        Write-Host
+        do {
+            $modelChoice = Read-Host "Choose model [current: $currentModel] (1-3)"
+            $valid = $true
             switch ($modelChoice) {
                 "1" { $currentModel = "gpt-4o-mini" }
                 "2" { $currentModel = "gpt-4o" }
-                "3" { $currentModel = "gpt-4-turbo" }
-                "4" { $currentModel = "gpt-3.5-turbo" }
-                "5" { $currentModel = Read-Host "Enter custom model name" }
+                "3" { $currentModel = Read-Host "Enter custom model name" }
                 "" { }
                 default {
-                    Write-Host "⚠️  Invalid option. Please enter 1-5." -ForegroundColor Yellow
+                    Write-Host "⚠️  Invalid option. Please enter 1-3." -ForegroundColor Yellow
                     $valid = $false
                 }
             }
-        }
-    } while (-not $valid)
+        } while (-not $valid)
+    }
 
     # API Key - only ask for the selected provider
     Write-Host
@@ -334,7 +395,7 @@ function Interactive-Setup {
         if ($newGeminiKey) { $currentGeminiKey = $newGeminiKey }
     } else {
         Write-Host
-        Write-Host "  OpenAI API Key:"
+        Write-Host "  API Key for OpenAI / Compatible Provider ($currentOpenAIBaseUrl):"
         if ($currentOpenAIKey) {
             Write-Host "    Current: ****$($currentOpenAIKey.Substring([Math]::Max(0, $currentOpenAIKey.Length - 4)))"
         } elseif ($env:OPENAI_API_KEY) {
@@ -342,54 +403,18 @@ function Interactive-Setup {
         } else {
             Write-Host "    Not configured"
         }
-        $newOpenAIKey = Read-Host "  Enter OpenAI API key (leave empty to keep)"
+        $newOpenAIKey = Read-Host "  Enter API key (optional for local servers, leave empty to keep/skip)"
         if ($newOpenAIKey) { $currentOpenAIKey = $newOpenAIKey }
     }
 
     # Save
     Write-Host
-    Save-Config -Format $currentFormat -AutoConfirm $currentAuto -AskPush $currentPush -Provider $currentProvider -Model $currentModel -GeminiKey $currentGeminiKey -OpenAIKey $currentOpenAIKey
+    Save-Config -Format $currentFormat -AutoConfirm $currentAuto -AskPush $currentPush -Provider $currentProvider -Model $currentModel -GeminiKey $currentGeminiKey -OpenAIKey $currentOpenAIKey -OpenAIBaseUrl $currentOpenAIBaseUrl
 
     Write-Host
     Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-    Write-Host "  Configuration complete! Run 'commit-ai' to start." -ForegroundColor White
+    Write-Host "  Configuration complete! Run commit-ai to start." -ForegroundColor White
     Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-    exit 0
-}
-
-# -------------------------------------------------
-# EDIT CUSTOM PROMPT
-# -------------------------------------------------
-function Edit-Prompt {
-    if (-not (Test-Path $CUSTOM_PROMPT_FILE)) {
-        $defaultPrompt = @"
-# Custom commit-ai prompt
-# Available variables: {HISTORY}, {FILES}, {DIFF}
-# Delete this file to use default prompts
-
-You are a senior Git expert.
-
-Recent commit history:
-{HISTORY}
-
-Staged files:
-{FILES}
-
-Relevant diff:
-{DIFF}
-
-MANDATORY RULES:
-- Return ONLY the commit message
-- Use imperative mood
-- Max length: 72 characters
-- No trailing period
-"@
-        Set-Content -Path $CUSTOM_PROMPT_FILE -Value $defaultPrompt -Encoding UTF8
-        Write-Host "📝 Created custom prompt file: $CUSTOM_PROMPT_FILE" -ForegroundColor Green
-    }
-    
-    # Try to open with notepad
-    Start-Process notepad.exe -ArgumentList $CUSTOM_PROMPT_FILE -Wait
     exit 0
 }
 
@@ -397,7 +422,7 @@ MANDATORY RULES:
 # SHOW CONFIG
 # -------------------------------------------------
 function Show-Config {
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
+    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
     Write-Host "  🤖 commit-ai v$SCRIPT_VERSION - Current Config" -ForegroundColor White
     Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
     Write-Host
@@ -407,12 +432,12 @@ function Show-Config {
         Write-Host
         Get-Content $CONFIG_FILE | ForEach-Object {
             $line = $_.Trim()
-            if ($line -match '^#' -or [string]::IsNullOrWhiteSpace($line)) { return }
-            $parts = $line -split '=', 2
+            if ($line -match "^#" -or [string]::IsNullOrWhiteSpace($line)) { return }
+            $parts = $line -split "=", 2
             if ($parts.Count -eq 2) {
                 $key = $parts[0].Trim()
                 $value = $parts[1].Trim()
-                if ($key -like '*api_key*' -and $value) {
+                if ($key -like "*api_key*" -and $value) {
                     Write-Host "   $key = ****$($value.Substring([Math]::Max(0, $value.Length - 4)))"
                 } else {
                     Write-Host "   $key = $value"
@@ -430,330 +455,33 @@ function Show-Config {
     $openaiStatus = if ($env:OPENAI_API_KEY) { "set" } else { "not set" }
     Write-Host "   GEMINI_API_KEY: $geminiStatus"
     Write-Host "   OPENAI_API_KEY: $openaiStatus"
+    Write-Host "   OPENAI_BASE_URL: $($env:OPENAI_BASE_URL)"
     Write-Host
-    
-    if (Test-Path $CUSTOM_PROMPT_FILE) {
-        Write-Host "📝 Custom prompt: $CUSTOM_PROMPT_FILE" -ForegroundColor Gray
-    }
     exit 0
 }
 
-# -------------------------------------------------
-# HELP
-# -------------------------------------------------
-function Show-Help {
-    @"
-commit-ai v$SCRIPT_VERSION - AI-powered Git commit messages
-
-USAGE:
-  .\commit-ai.ps1 [OPTIONS]
-
-OPTIONS:
-  -Emoji, -e        Use Gitmoji commit format (emoji prefix)
-  -Conv, -c         Use Conventional Commits format (overrides config)
-  -Message, -m      Provide context/hint for AI (e.g., -m "fix login bug")
-  -Preview, -p      Preview commit message only (no commit)
-  -Yes, -y          Skip confirmation prompt (auto-commit)
-  -Undo, -u         Undo last commit (soft reset, keeps changes staged)
-  -Setup, -s        Interactive configuration setup
-  -Config           Show current configuration
-  -EditPrompt       Edit custom prompt for advanced users
-  -Help, -h         Show this help message
-  -Version, -v      Show version number
-
-PROVIDERS:
-  gemini            Google Gemini (default)
-  openai            OpenAI GPT models
-
-EXAMPLES:
-  .\commit-ai.ps1                          # Use configured defaults
-  .\commit-ai.ps1 -Emoji                   # Gitmoji format
-  .\commit-ai.ps1 -c                       # Conventional format
-  .\commit-ai.ps1 -m "added user auth"     # AI uses hint for better message
-  .\commit-ai.ps1 -e -m "refactored api"   # Gitmoji with context
-  .\commit-ai.ps1 -e -p                    # Preview Gitmoji message
-  .\commit-ai.ps1 -Setup                   # Configure preferences
-  .\commit-ai.ps1 -EditPrompt              # Customize AI prompt
-
-CONFIG FILE:
-  Location: ~/.commit-ai.conf
-
-MORE INFO:
-  https://github.com/jhowk14/commit-ai
-"@
-    exit 0
-}
-
-function Show-Version {
-    Write-Host "commit-ai v$SCRIPT_VERSION"
-    exit 0
-}
-
-# Load config first
+# Load config
 Load-Config
 
-# Handle flags
-if ($Help) { Show-Help }
-if ($Version) { Show-Version }
-if ($Setup) { Interactive-Setup }
+if ($BaseUrl) {
+    $script:OPENAI_BASE_URL = $BaseUrl
+}
+
 if ($Config) { Show-Config }
-if ($EditPrompt) { Edit-Prompt }
-if ($Emoji) { $script:EMOJI_MODE = $true }
-if ($Conv) { $script:EMOJI_MODE = $false }  # Force conventional
-if ($Yes) { $script:AUTO_YES = $true }
+if ($Setup) { Interactive-Setup }
 
-# -------------------------------------------------
-# UNDO LAST COMMIT
-# -------------------------------------------------
-if ($Undo) {
-    $lastMsg = git log -1 --pretty=%B
-    git reset --soft HEAD~1
-    Write-Host "↩️  Undone last commit:" -ForegroundColor Yellow
-    Write-Host $lastMsg
-    exit 0
-}
-
-# -------------------------------------------------
-# DEPENDENCIES
-# -------------------------------------------------
-if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-    Write-Host "❌ Missing dependency: git" -ForegroundColor Red
-    exit 1
-}
-
-# Check API key based on provider
+# API Endpoint Calculation
 if ($script:PROVIDER -eq "openai") {
-    if ([string]::IsNullOrEmpty($env:OPENAI_API_KEY)) {
-        Write-Host "❌ OPENAI_API_KEY is not set." -ForegroundColor Red
-        Write-Host "Run 'commit-ai -Setup' to configure." -ForegroundColor Gray
-        exit 1
+    $baseUrl = if ($script:OPENAI_BASE_URL) { $script:OPENAI_BASE_URL.TrimEnd("/") } else { "https://api.openai.com/v1" }
+    $endpointUrl = if ($baseUrl.EndsWith("/chat/completions")) { $baseUrl } else { "$baseUrl/chat/completions" }
+    $apiKey = if ($env:OPENAI_API_KEY) { $env:OPENAI_API_KEY } else { "none" }
+    
+    $headers = @{ "Content-Type" = "application/json" }
+    if ($apiKey -ne "none" -and -not [string]::IsNullOrWhiteSpace($apiKey)) {
+        $headers["Authorization"] = "Bearer $apiKey"
     }
-    $apiKey = $env:OPENAI_API_KEY
-} else {
-    if ([string]::IsNullOrEmpty($env:GEMINI_API_KEY)) {
-        Write-Host "❌ GEMINI_API_KEY is not set." -ForegroundColor Red
-        Write-Host "Run 'commit-ai -Setup' to configure." -ForegroundColor Gray
-        exit 1
-    }
-    $apiKey = $env:GEMINI_API_KEY
-}
-
-# -------------------------------------------------
-# STAGING CHECK
-# -------------------------------------------------
-git diff --cached --quiet 2>$null
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "❌ No staged changes found." -ForegroundColor Red
-    Write-Host "ℹ️ Run: git add <files>" -ForegroundColor Cyan
-    exit 1
-}
-
-# Get diff
-$rawDiff = git diff --cached --unified=3
-$filteredDiff = $rawDiff | Select-String -Pattern '^\+|^-|^@@|^diff --git' | ForEach-Object { $_.Line }
-$diffText = ($filteredDiff -join "`n")
-$DIFF = $diffText.Substring(0, [Math]::Min($MAX_CHARS, $diffText.Length))
-
-$FILES = (git diff --cached --name-only) -join "`n"
-$HISTORY = (git log --oneline -n 20) -join "`n"
-
-# -------------------------------------------------
-# PROMPT SELECTION
-# -------------------------------------------------
-if (Test-Path $CUSTOM_PROMPT_FILE) {
-    $PROMPT = (Get-Content $CUSTOM_PROMPT_FILE | Where-Object { $_ -notmatch '^#' }) -join "`n"
-    $PROMPT = $PROMPT -replace '\{HISTORY\}', $HISTORY
-    $PROMPT = $PROMPT -replace '\{FILES\}', $FILES
-    $PROMPT = $PROMPT -replace '\{DIFF\}', $DIFF
-} elseif ($script:EMOJI_MODE) {
-    $USER_HINT = ""
-    if (-not [string]::IsNullOrWhiteSpace($Message)) {
-        $USER_HINT = @"
-
-User context/hint for this commit:
-$Message
-
-Use this hint to better understand the intent and generate a more accurate commit message.
-
-"@
-    }
-    $PROMPT = @"
-You are a senior Git and Gitmoji expert.
-$USER_HINT
-Recent commit history:
-$HISTORY
-
-Staged files:
-$FILES
-
-Relevant diff:
-$DIFF
-
-MANDATORY RULES:
-- Choose ONLY ONE gitmoji (emoji)
-- EXACT format: emoji space Message
-- First letter MUST be CAPITALIZED
-- Message in English
-- Use imperative mood
-- Max length: 72 characters
-- No trailing period
-- Return ONLY the final commit message
-"@
-} else {
-    $USER_HINT = ""
-    if (-not [string]::IsNullOrWhiteSpace($Message)) {
-        $USER_HINT = @"
-
-User context/hint for this commit:
-$Message
-
-Use this hint to better understand the intent and generate a more accurate commit message.
-
-"@
-    }
-    $PROMPT = @"
-You are a senior Git and Conventional Commits expert.
-$USER_HINT
-Recent commit history:
-$HISTORY
-
-Staged files:
-$FILES
-
-Relevant diff:
-$DIFF
-
-MANDATORY RULES:
-- Choose ONE action type
-- EXACT format: type: message
-- Message starts with lowercase
-- Message in English
-- Use imperative mood
-- Max length: 72 characters
-- No trailing period
-- Return ONLY the final commit message
-
-AVAILABLE TYPES:
-feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
-"@
-}
-
-# -------------------------------------------------
-# API REQUEST
-# -------------------------------------------------
-if ($script:PROVIDER -eq "openai") {
-    $body = @{
-        model = $script:DEFAULT_MODEL
-        messages = @(
-            @{ role = "user"; content = $PROMPT }
-        )
-        max_tokens = 100
-    } | ConvertTo-Json -Depth 5 -Compress
-
-    try {
-        $response = Invoke-RestMethod -Uri "https://api.openai.com/v1/chat/completions" -Method Post -Body $body -ContentType 'application/json' -Headers @{
-            'Authorization' = "Bearer $apiKey"
-        }
-        $COMMIT_MSG = $response.choices[0].message.content
-    } catch {
-        Write-Host "❌ Failed to call OpenAI API: $_" -ForegroundColor Red
-        exit 1
-    }
-} else {
-    $body = @{
-        contents = @(
-            @{ parts = @( @{ text = $PROMPT } ) }
-        )
-    } | ConvertTo-Json -Depth 5 -Compress
-
-    try {
-        $response = Invoke-RestMethod -Uri "https://generativelanguage.googleapis.com/v1beta/models/$($script:DEFAULT_MODEL):generateContent" -Method Post -Body $body -ContentType 'application/json' -Headers @{
-            'x-goog-api-key' = $apiKey
-        }
-        $COMMIT_MSG = $response.candidates[0].content.parts[0].text
-    } catch {
-        Write-Host "❌ Failed to call Gemini API: $_" -ForegroundColor Red
-        exit 1
-    }
-}
-
-if ([string]::IsNullOrWhiteSpace($COMMIT_MSG)) {
-    Write-Host "❌ Failed to generate commit message." -ForegroundColor Red
-    exit 1
-}
-
-# -------------------------------------------------
-# NORMALIZATION
-# -------------------------------------------------
-$COMMIT_MSG = $COMMIT_MSG.Trim() -replace "`n", " " -replace "\s+", " "
-
-if ($script:EMOJI_MODE) {
-    if ($COMMIT_MSG -match '^(\p{So}|\p{Cs}{2})(\S)') {
-        $COMMIT_MSG = $COMMIT_MSG -replace '^(\p{So}|\p{Cs}{2})(\S)', '$1 $2'
-    }
-} else {
-    if ($COMMIT_MSG -match '^([a-z]+): ([A-Z])') {
-        $lower = $Matches[2].ToLower()
-        $COMMIT_MSG = $COMMIT_MSG -replace '^([a-z]+): [A-Z]', "`$1: $lower"
-    }
-}
-
-# -------------------------------------------------
-# OUTPUT
-# -------------------------------------------------
-if ($Preview) {
-    Write-Host
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-    Write-Host "  ℹ️  Preview Mode" -ForegroundColor White
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-    Write-Host
-    Write-Host "  $COMMIT_MSG" -ForegroundColor Green
-    Write-Host
-    exit 0
-}
-
-if (-not $script:AUTO_YES) {
-    Write-Host
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-    Write-Host "  📝 Generated Commit Message" -ForegroundColor White
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-    Write-Host
-    Write-Host "  $COMMIT_MSG" -ForegroundColor Green
-    Write-Host
-    Write-Host "Press Enter to confirm, or type a new message:" -ForegroundColor Yellow
-    $edited = Read-Host
-    if (-not [string]::IsNullOrWhiteSpace($edited)) {
-        $COMMIT_MSG = $edited
-    }
-    Write-Host
-}
-
-git commit -m $COMMIT_MSG
-Write-Host
-Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-Write-Host "  ✅ Commit created successfully!" -ForegroundColor Green
-Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-
-# Ask to push if configured
-if ($script:ASK_PUSH) {
-    Write-Host
-    $pushChoice = Read-Host "🚀 Push to remote? (y/n)"
-    switch ($pushChoice.ToLower()) {
-        "y" { 
-            Write-Host
-            git push
-            Write-Host
-            Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-            Write-Host "  🚀 Pushed to remote!" -ForegroundColor Green
-            Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-        }
-        "yes" { 
-            Write-Host
-            git push
-            Write-Host
-            Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-            Write-Host "  🚀 Pushed to remote!" -ForegroundColor Green
-            Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-        }
+    if ($baseUrl -like "*openrouter.ai*") {
+        $headers["HTTP-Referer"] = "https://github.com/jhowk14/commit-ai"
+        $headers["X-Title"] = "commit-ai"
     }
 }

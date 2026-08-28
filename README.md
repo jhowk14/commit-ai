@@ -1,16 +1,17 @@
 # commit-ai 🤖
 
-Generate high-quality Git commit messages automatically using AI (Google Gemini or OpenAI), with support for Gitmoji and Conventional Commits.
+Generate high-quality Git commit messages automatically using AI (Google Gemini, OpenAI, or any OpenAI-compatible provider like OpenRouter, Groq, DeepSeek, Ollama, Cerebras, LM Studio, etc.), with support for Gitmoji and Conventional Commits.
 
 ## ✨ Features
 
 - 🤖 AI-generated commit messages
-- 🔌 **Multi-provider**: Gemini & OpenAI support
+- 🔌 **Multi-provider**: Google Gemini & **ANY OpenAI-Compatible Provider** (OpenAI, OpenRouter, Groq, DeepSeek, Ollama, Cerebras, LocalAI, LM Studio, vLLM, etc.)
 - 🎨 Gitmoji mode (`-e`)
 - 📦 Conventional Commits mode (default)
 - 💬 **Context hints** for better messages (`-m`)
+- 🌐 **Custom Base URL** (`--base-url` or `openai_base_url`)
 - 🔧 Persistent configuration
-- ⚙️ Interactive setup (`--setup`)
+- ⚙️ Interactive setup (`--setup`) with one-click provider presets
 - 📝 **Custom prompts** for advanced users
 - 🔍 Reads only staged diffs
 - ✏️ Edit message before commit
@@ -58,9 +59,10 @@ The setup wizard guides you through:
 - ✅ Auto-confirm preference
 - ✅ Ask to push after commit
 - ✅ Use custom prompt
-- ✅ AI Provider (Gemini/OpenAI)
-- ✅ Model selection
-- ✅ API key configuration
+- ✅ AI Provider (Gemini or OpenAI / OpenAI-Compatible)
+- ✅ Base URL selection (OpenAI, OpenRouter, Groq, DeepSeek, Ollama, Cerebras, LM Studio, or Custom)
+- ✅ Model selection (with recommended models per provider)
+- ✅ API key configuration (optional for local models like Ollama)
 
 ### Config File (`~/.commit-ai.conf`)
 
@@ -69,10 +71,10 @@ format=conventional
 auto_confirm=false
 ask_push=true
 use_custom_prompt=false
-provider=gemini
-model=gemini-3-flash-preview
-gemini_api_key=your_key
-openai_api_key=your_key
+provider=openai
+model=gpt-4o-mini
+openai_base_url=https://api.openai.com/v1
+openai_api_key=your_key_here
 ```
 
 ---
@@ -87,16 +89,17 @@ commit-ai
 ### Examples
 
 ```bash
-commit-ai              # Use defaults
-commit-ai -e           # Gitmoji format
-commit-ai -c           # Conventional format
-commit-ai -m "fix login bug"  # Provide context to AI
-commit-ai -e -m "new feature" # Gitmoji with hint
-commit-ai -C           # Use custom prompt
-commit-ai -e -p        # Preview only
-commit-ai -y           # Auto-commit
-commit-ai --setup      # Configure
-commit-ai --edit-prompt # Edit custom prompt
+commit-ai                                              # Use defaults
+commit-ai -e                                           # Gitmoji format
+commit-ai -c                                           # Conventional format
+commit-ai -m "fix login bug"                           # Provide context to AI
+commit-ai -e -m "new feature"                          # Gitmoji with hint
+commit-ai -C                                           # Use custom prompt
+commit-ai -e -p                                        # Preview only
+commit-ai -y                                           # Auto-commit
+commit-ai --base-url "https://openrouter.ai/api/v1"   # Override base URL
+commit-ai --setup                                      # Configure
+commit-ai --edit-prompt                                # Edit custom prompt
 ```
 
 ---
@@ -108,86 +111,39 @@ commit-ai --edit-prompt # Edit custom prompt
 | `-e`, `--emoji` | Use Gitmoji format |
 | `-c`, `--conv` | Use Conventional format |
 | `-m`, `--message` | Provide context/hint for AI |
+| `-b`, `--branch` | Switch/create branch and push after commit |
+| `-s`, `-S`, `--sync` | Auto sync remote before commit |
 | `-C`, `--custom` | Use custom prompt file |
 | `-p`, `--preview` | Preview only |
 | `-y`, `--yes` | Skip confirmation |
 | `-u`, `--undo` | Undo last commit |
-| `-s`, `--setup` | Interactive setup |
-| `--config` | Show config |
+| `-B`, `--base-url` | Set OpenAI-compatible Base URL |
+| `--setup` | Interactive setup wizard |
+| `--config` | Show current configuration |
 | `--edit-prompt` | Edit custom prompt file |
 | `-h`, `--help` | Show help message |
 | `-v`, `--version` | Show version number |
-
-### Full Help Output
-
-```
-commit-ai v1.3.0 — AI-powered Git commit messages
-
-USAGE:
-  commit-ai [OPTIONS]
-
-OPTIONS:
-  -e, --emoji       Use Gitmoji commit format (emoji prefix)
-  -c, --conv        Use Conventional Commits format (overrides config)
-  -m, --message     Provide context/hint for AI (e.g., -m "fix login bug")
-  -C, --custom      Use custom prompt file (~/.commit-ai-prompt.txt)
-  -p, --preview     Preview commit message only (no commit)
-  -y, --yes         Skip confirmation prompt (auto-commit)
-  -u, --undo        Undo last commit (soft reset, keeps changes staged)
-  -s, --setup       Interactive configuration setup
-  --config          Show current configuration
-  --edit-prompt     Edit custom prompt for advanced users
-  -h, --help        Show this help message
-  -v, --version     Show version number
-
-PROVIDERS:
-  gemini            Google Gemini (default)
-  openai            OpenAI GPT models
-
-EXAMPLES:
-  commit-ai                          # Use configured defaults
-  commit-ai -e                       # Gitmoji format
-  commit-ai -c                       # Conventional format
-  commit-ai -m "added user auth"     # AI uses hint for better message
-  commit-ai -e -m "refactored api"   # Gitmoji with context
-  commit-ai -e -p                    # Preview Gitmoji message
-  commit-ai -y                       # Auto-commit without confirmation
-  commit-ai --setup                  # Configure preferences
-  commit-ai --edit-prompt            # Customize AI prompt
-
-CONFIG FILE:
-  Location: ~/.commit-ai.conf
-  
-  Available settings:
-    format=conventional|gitmoji
-    auto_confirm=true|false
-    ask_push=true|false
-    use_custom_prompt=true|false
-    provider=gemini|openai
-    model=<model-name>
-    gemini_api_key=your_key
-    openai_api_key=your_key
-
-ENVIRONMENT:
-  GEMINI_API_KEY     Google Gemini API key
-  OPENAI_API_KEY     OpenAI API key
-```
 
 ---
 
 ## 🔌 Supported Providers
 
-### Gemini (Google)
+### 1. OpenAI & OpenAI-Compatible Endpoints
+Set `openai_base_url` to any compatible server:
+- **OpenAI Official**: `https://api.openai.com/v1` (`gpt-4o-mini`, `gpt-4o`, `o3-mini`)
+- **OpenRouter**: `https://openrouter.ai/api/v1` (`meta-llama/llama-3.3-70b-instruct`, `anthropic/claude-3.5-sonnet`, `deepseek/deepseek-chat`)
+- **Groq**: `https://api.groq.com/openai/v1` (`llama-3.3-70b-versatile`, `llama-3.1-8b-instant`)
+- **DeepSeek**: `https://api.deepseek.com/v1` (`deepseek-chat`, `deepseek-reasoner`)
+- **Ollama (Local)**: `http://localhost:11434/v1` (`llama3.2`, `qwen2.5-coder:7b`, `deepseek-r1:8b`)
+- **LM Studio / LocalAI**: `http://localhost:1234/v1`
+- **Cerebras**: `https://api.cerebras.ai/v1` (`llama-3.3-70b`)
+- **Any Custom OpenAI API Endpoint**: `https://your-custom-proxy/v1`
+
+### 2. Google Gemini
 - `gemini-3-flash-preview` (recommended)
 - `gemini-2.5-flash`
 - `gemini-2.0-flash`
 - `gemini-2.5-pro-preview`
-
-### OpenAI
-- `gpt-4o-mini` (recommended)
-- `gpt-4o`
-- `gpt-4-turbo`
-- `gpt-3.5-turbo`
 
 ---
 
@@ -200,9 +156,7 @@ commit-ai --edit-prompt  # Create/edit the prompt file
 commit-ai -C             # Force use custom prompt
 ```
 
-You can also enable it permanently via `--setup` or by setting `use_custom_prompt=true` in your config.
-
-The prompt file (`~/.commit-ai-prompt.txt`) supports placeholders:
+Placeholders:
 - `{HISTORY}` - Recent commits
 - `{FILES}` - Staged files
 - `{DIFF}` - Code changes
@@ -213,46 +167,15 @@ The prompt file (`~/.commit-ai-prompt.txt`) supports placeholders:
 
 ### Linux
 - `git`, `jq`, `curl`
-- API key (Gemini or OpenAI)
+- API key (Gemini, OpenAI, or compatible provider; optional for local Ollama)
 
 ### Windows
 - Git for Windows
 - PowerShell 5.1+
-- API key (Gemini or OpenAI)
-
----
-
-## 📁 Project Structure
-
-```
-commit-ai/
-├── any-linux/
-│   ├── commit-ai.sh
-│   └── install.sh
-├── arch-linux/
-│   ├── PKGBUILD
-│   └── .SRCINFO
-├── windows/
-│   ├── commit-ai.ps1
-│   ├── commit-ai.bat
-│   └── install.ps1
-└── docs/
-```
+- API key (Gemini, OpenAI, or compatible provider)
 
 ---
 
 ## 📄 License
 
-MIT License © 2025
-
-## 🤝 Contributing
-
-Pull requests welcome!
-
-## ⭐ Credits
-
-- [Gitmoji](https://gitmoji.dev/)
-- [Google Gemini](https://deepmind.google/technologies/gemini/)
-- [OpenAI](https://openai.com/)
-
-git remote add aur ssh://aur@aur.archlinux.org/commit-ai.git
+MIT License © 2026 Jonathan Henrique Perozi Lourenço (jhowk14)

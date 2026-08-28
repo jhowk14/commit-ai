@@ -2,7 +2,7 @@
 set -e
 
 # ================= CONFIG =================
-VERSION="1.5.0"
+VERSION="1.6.0"
 MAX_CHARS=14000
 CONFIG_FILE="$HOME/.commit-ai.conf"
 CUSTOM_PROMPT_FILE="$HOME/.commit-ai-prompt.txt"
@@ -13,6 +13,7 @@ DEFAULT_AUTO_CONFIRM="false"
 DEFAULT_AUTO_SYNC="false"
 DEFAULT_PROVIDER="gemini"
 DEFAULT_MODEL="gemini-3-flash-preview"
+DEFAULT_OPENAI_BASE_URL="https://api.openai.com/v1"
 
 # Runtime
 AUTO_YES=false
@@ -29,6 +30,7 @@ ASK_PUSH=false
 USE_CUSTOM_PROMPT=false
 USER_MESSAGE=""
 TARGET_BRANCH=""
+OPENAI_BASE_URL=""
 # =========================================
 
 # -------------------------------------------------
@@ -36,7 +38,7 @@ TARGET_BRANCH=""
 # -------------------------------------------------
 load_config() {
   if [ -f "$CONFIG_FILE" ]; then
-    while IFS='=' read -r key value; do
+    while IFS="=" read -r key value; do
       [[ "$key" =~ ^#.*$ ]] && continue
       [[ -z "$key" ]] && continue
       
@@ -65,6 +67,9 @@ load_config() {
         model)
           DEFAULT_MODEL="$value"
           ;;
+        openai_base_url|base_url)
+          [[ -z "$OPENAI_BASE_URL" ]] && OPENAI_BASE_URL="$value"
+          ;;
         gemini_api_key)
           [[ -z "$GEMINI_API_KEY" ]] && GEMINI_API_KEY="$value"
           ;;
@@ -88,6 +93,7 @@ save_config() {
   local model="$6"
   local gemini_key="$7"
   local openai_key="$8"
+  local openai_base_url="$9"
 
   cat > "$CONFIG_FILE" << EOF
 # commit-ai configuration
@@ -110,6 +116,9 @@ provider=$provider
 
 # Model to use (depends on provider)
 model=$model
+
+# Base URL for OpenAI-compatible providers (OpenAI, OpenRouter, Groq, DeepSeek, Ollama, Cerebras, etc.)
+openai_base_url=${openai_base_url:-https://api.openai.com/v1}
 
 # API Keys (optional - can also use environment variables)
 $([ -n "$gemini_key" ] && echo "gemini_api_key=$gemini_key" || echo "# gemini_api_key=your_key_here")
@@ -134,11 +143,12 @@ interactive_setup() {
   local current_custom_prompt="false"
   local current_provider="gemini"
   local current_model="gemini-3-flash-preview"
+  local current_openai_base_url="https://api.openai.com/v1"
   local current_gemini_key=""
   local current_openai_key=""
 
   if [ -f "$CONFIG_FILE" ]; then
-    while IFS='=' read -r key value; do
+    while IFS="=" read -r key value; do
       [[ "$key" =~ ^#.*$ ]] && continue
       [[ -z "$key" ]] && continue
       key=$(echo "$key" | xargs)
@@ -150,6 +160,7 @@ interactive_setup() {
         use_custom_prompt) current_custom_prompt="$value" ;;
         provider) current_provider="$value" ;;
         model) current_model="$value" ;;
+        openai_base_url|base_url) current_openai_base_url="$value" ;;
         gemini_api_key) current_gemini_key="$value" ;;
         openai_api_key) current_openai_key="$value" ;;
       esac
@@ -219,7 +230,7 @@ interactive_setup() {
   echo
   echo "🔌 AI Provider:"
   echo "   1) Gemini (Google)"
-  echo "   2) OpenAI (GPT)"
+  echo "   2) OpenAI / OpenAI-Compatible (OpenAI, OpenRouter, Groq, DeepSeek, Ollama, Cerebras, LM Studio, etc.)"
   echo
   local provider_choice
   while true; do
@@ -232,12 +243,56 @@ interactive_setup() {
     esac
   done
 
+  # Endpoint / Base URL selection if provider is openai
+  local chosen_preset="openai"
+  if [[ "$current_provider" == "openai" ]]; then
+    echo
+    echo "🌐 OpenAI Endpoint / Base URL:"
+    echo "   1) OpenAI Official (https://api.openai.com/v1)"
+    echo "   2) OpenRouter (https://openrouter.ai/api/v1)"
+    echo "   3) Groq (https://api.groq.com/openai/v1)"
+    echo "   4) DeepSeek (https://api.deepseek.com/v1)"
+    echo "   5) Ollama Local (http://localhost:11434/v1)"
+    echo "   6) LM Studio / LocalAI (http://localhost:1234/v1)"
+    echo "   7) Cerebras (https://api.cerebras.ai/v1)"
+    echo "   8) Custom Base URL"
+    echo
+    local url_choice
+    while true; do
+      read -p "Choose endpoint [current: $current_openai_base_url] (1-8): " url_choice
+      case "$url_choice" in
+        1) current_openai_base_url="https://api.openai.com/v1"; chosen_preset="openai"; break ;;
+        2) current_openai_base_url="https://openrouter.ai/api/v1"; chosen_preset="openrouter"; break ;;
+        3) current_openai_base_url="https://api.groq.com/openai/v1"; chosen_preset="groq"; break ;;
+        4) current_openai_base_url="https://api.deepseek.com/v1"; chosen_preset="deepseek"; break ;;
+        5) current_openai_base_url="http://localhost:11434/v1"; chosen_preset="ollama"; break ;;
+        6) current_openai_base_url="http://localhost:1234/v1"; chosen_preset="lmstudio"; break ;;
+        7) current_openai_base_url="https://api.cerebras.ai/v1"; chosen_preset="cerebras"; break ;;
+        8)
+          read -p "Enter custom Base URL (e.g., https://my-server.com/v1): " custom_url
+          current_openai_base_url="${custom_url:-https://api.openai.com/v1}"
+          chosen_preset="custom"
+          break
+          ;;
+        "") break ;; # Keep current
+        *) echo "⚠️  Invalid option. Please enter 1-8." ;;
+      esac
+    done
+  fi
+
   # Reset model to default if provider changed
   if [[ "$old_provider" != "$current_provider" ]]; then
     if [[ "$current_provider" == "gemini" ]]; then
       current_model="gemini-3-flash-preview"
     else
-      current_model="gpt-4o-mini"
+      case "$chosen_preset" in
+        openrouter) current_model="meta-llama/llama-3.3-70b-instruct" ;;
+        groq) current_model="llama-3.3-70b-versatile" ;;
+        deepseek) current_model="deepseek-chat" ;;
+        ollama) current_model="llama3.2" ;;
+        cerebras) current_model="llama-3.3-70b" ;;
+        *) current_model="gpt-4o-mini" ;;
+      esac
     fi
   fi
 
@@ -268,28 +323,122 @@ interactive_setup() {
       esac
     done
   else
-    echo "   1) gpt-4o-mini (fast, recommended)"
-    echo "   2) gpt-4o (advanced)"
-    echo "   3) gpt-4-turbo"
-    echo "   4) gpt-3.5-turbo (legacy)"
-    echo "   5) Custom"
-    echo
-    local model_choice
-    while true; do
-      read -p "Choose model [current: $current_model] (1-5): " model_choice
-      case "$model_choice" in
-        1) current_model="gpt-4o-mini"; break ;;
-        2) current_model="gpt-4o"; break ;;
-        3) current_model="gpt-4-turbo"; break ;;
-        4) current_model="gpt-3.5-turbo"; break ;;
-        5) 
-          read -p "Enter custom model name: " current_model
-          break
-          ;;
-        "") break ;; # Keep current
-        *) echo "⚠️  Invalid option. Please enter 1-5." ;;
-      esac
-    done
+    if [[ "$chosen_preset" == "openrouter" ]]; then
+      echo "   1) meta-llama/llama-3.3-70b-instruct (recommended)"
+      echo "   2) deepseek/deepseek-chat"
+      echo "   3) anthropic/claude-3.5-sonnet"
+      echo "   4) google/gemini-2.0-flash-001"
+      echo "   5) openai/gpt-4o-mini"
+      echo "   6) Custom model name"
+      echo
+      local model_choice
+      while true; do
+        read -p "Choose model [current: $current_model] (1-6): " model_choice
+        case "$model_choice" in
+          1) current_model="meta-llama/llama-3.3-70b-instruct"; break ;;
+          2) current_model="deepseek/deepseek-chat"; break ;;
+          3) current_model="anthropic/claude-3.5-sonnet"; break ;;
+          4) current_model="google/gemini-2.0-flash-001"; break ;;
+          5) current_model="openai/gpt-4o-mini"; break ;;
+          6) read -p "Enter OpenRouter model ID: " current_model; break ;;
+          "") break ;;
+          *) echo "⚠️  Invalid option. Please enter 1-6." ;;
+        esac
+      done
+    elif [[ "$chosen_preset" == "groq" ]]; then
+      echo "   1) llama-3.3-70b-versatile (recommended)"
+      echo "   2) llama-3.1-8b-instant (ultra fast)"
+      echo "   3) mixtral-8x7b-32768"
+      echo "   4) Custom model name"
+      echo
+      local model_choice
+      while true; do
+        read -p "Choose model [current: $current_model] (1-4): " model_choice
+        case "$model_choice" in
+          1) current_model="llama-3.3-70b-versatile"; break ;;
+          2) current_model="llama-3.1-8b-instant"; break ;;
+          3) current_model="mixtral-8x7b-32768"; break ;;
+          4) read -p "Enter Groq model name: " current_model; break ;;
+          "") break ;;
+          *) echo "⚠️  Invalid option. Please enter 1-4." ;;
+        esac
+      done
+    elif [[ "$chosen_preset" == "deepseek" ]]; then
+      echo "   1) deepseek-chat (recommended)"
+      echo "   2) deepseek-reasoner"
+      echo "   3) Custom model name"
+      echo
+      local model_choice
+      while true; do
+        read -p "Choose model [current: $current_model] (1-3): " model_choice
+        case "$model_choice" in
+          1) current_model="deepseek-chat"; break ;;
+          2) current_model="deepseek-reasoner"; break ;;
+          3) read -p "Enter DeepSeek model name: " current_model; break ;;
+          "") break ;;
+          *) echo "⚠️  Invalid option. Please enter 1-3." ;;
+        esac
+      done
+    elif [[ "$chosen_preset" == "ollama" || "$chosen_preset" == "lmstudio" ]]; then
+      echo "   1) llama3.2"
+      echo "   2) qwen2.5-coder:7b"
+      echo "   3) mistral"
+      echo "   4) deepseek-r1:8b"
+      echo "   5) Custom model name (installed locally)"
+      echo
+      local model_choice
+      while true; do
+        read -p "Choose model [current: $current_model] (1-5): " model_choice
+        case "$model_choice" in
+          1) current_model="llama3.2"; break ;;
+          2) current_model="qwen2.5-coder:7b"; break ;;
+          3) current_model="mistral"; break ;;
+          4) current_model="deepseek-r1:8b"; break ;;
+          5) read -p "Enter local model name: " current_model; break ;;
+          "") break ;;
+          *) echo "⚠️  Invalid option. Please enter 1-5." ;;
+        esac
+      done
+    elif [[ "$chosen_preset" == "cerebras" ]]; then
+      echo "   1) llama-3.3-70b (recommended)"
+      echo "   2) llama3.1-8b"
+      echo "   3) Custom model name"
+      echo
+      local model_choice
+      while true; do
+        read -p "Choose model [current: $current_model] (1-3): " model_choice
+        case "$model_choice" in
+          1) current_model="llama-3.3-70b"; break ;;
+          2) current_model="llama3.1-8b"; break ;;
+          3) read -p "Enter Cerebras model name: " current_model; break ;;
+          "") break ;;
+          *) echo "⚠️  Invalid option. Please enter 1-3." ;;
+        esac
+      done
+    else
+      echo "   1) gpt-4o-mini (fast, recommended)"
+      echo "   2) gpt-4o (advanced)"
+      echo "   3) gpt-4-turbo"
+      echo "   4) gpt-3.5-turbo (legacy)"
+      echo "   5) Custom model name"
+      echo
+      local model_choice
+      while true; do
+        read -p "Choose model [current: $current_model] (1-5): " model_choice
+        case "$model_choice" in
+          1) current_model="gpt-4o-mini"; break ;;
+          2) current_model="gpt-4o"; break ;;
+          3) current_model="gpt-4-turbo"; break ;;
+          4) current_model="gpt-3.5-turbo"; break ;;
+          5) 
+            read -p "Enter model name: " current_model
+            break
+            ;;
+          "") break ;; # Keep current
+          *) echo "⚠️  Invalid option. Please enter 1-5." ;;
+        esac
+      done
+    fi
   fi
 
   # API Key - only ask for the selected provider
@@ -309,22 +458,35 @@ interactive_setup() {
     read -p "  Enter Gemini API key (leave empty to keep): " new_gemini_key
     [ -n "$new_gemini_key" ] && current_gemini_key="$new_gemini_key"
   else
+    local is_local_endpoint=false
+    if [[ "$current_openai_base_url" =~ localhost|127\.0\.0\.1|11434|1234 ]]; then
+      is_local_endpoint=true
+    fi
+
     echo
-    echo "  OpenAI API Key:"
+    echo "  API Key for OpenAI / Compatible Provider ($current_openai_base_url):"
     if [ -n "$current_openai_key" ]; then
       echo "    Current: ****${current_openai_key: -4}"
     elif [ -n "$OPENAI_API_KEY" ]; then
       echo "    Using environment variable"
     else
-      echo "    Not configured"
+      if $is_local_endpoint; then
+        echo "    Not configured (Optional for local server)"
+      else
+        echo "    Not configured"
+      fi
     fi
-    read -p "  Enter OpenAI API key (leave empty to keep): " new_openai_key
+    if $is_local_endpoint; then
+      read -p "  Enter API key (optional for local servers, press Enter to skip): " new_openai_key
+    else
+      read -p "  Enter API key (leave empty to keep): " new_openai_key
+    fi
     [ -n "$new_openai_key" ] && current_openai_key="$new_openai_key"
   fi
 
   # Save
   echo
-  save_config "$current_format" "$current_auto" "$current_push" "$current_custom_prompt" "$current_provider" "$current_model" "$current_gemini_key" "$current_openai_key"
+  save_config "$current_format" "$current_auto" "$current_push" "$current_custom_prompt" "$current_provider" "$current_model" "$current_gemini_key" "$current_openai_key" "$current_openai_base_url"
 
   echo
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -388,7 +550,7 @@ show_config() {
   if [ -f "$CONFIG_FILE" ]; then
     echo "📂 Config file: $CONFIG_FILE"
     echo
-    while IFS='=' read -r key value; do
+    while IFS="=" read -r key value; do
       [[ "$key" =~ ^#.*$ ]] && continue
       [[ -z "$key" ]] && continue
       key=$(echo "$key" | xargs)
@@ -410,6 +572,7 @@ show_config() {
   echo "🔑 Environment variables:"
   echo "   GEMINI_API_KEY: $([ -n "$GEMINI_API_KEY" ] && echo "set" || echo "not set")"
   echo "   OPENAI_API_KEY: $([ -n "$OPENAI_API_KEY" ] && echo "set" || echo "not set")"
+  echo "   OPENAI_BASE_URL: $([ -n "$OPENAI_BASE_URL" ] && echo "$OPENAI_BASE_URL" || echo "not set (default: https://api.openai.com/v1)")"
   echo
   if [ -f "$CUSTOM_PROMPT_FILE" ]; then
     echo "📝 Custom prompt: $CUSTOM_PROMPT_FILE"
@@ -428,24 +591,31 @@ USAGE:
   commit-ai [OPTIONS]
 
 OPTIONS:
-  -e, --emoji       Use Gitmoji commit format (emoji prefix)
-  -c, --conv        Use Conventional Commits format (overrides config)
-  -C, --custom      Use custom prompt file (~/.commit-ai-prompt.txt)
-  -m, --message     Provide context/hint for AI (e.g., -m "fix login bug")
-  -b, --branch      Create to branch and deploy (e.g. -b feature-name)
-  -p, --preview     Preview commit message only (no commit)
-  -y, --yes         Skip confirmation prompt (auto-commit)
-  -s, -S, --sync    Auto sync remote (git add -> stash -> pull -> stash pop -> add) before commit
-  -u, --undo        Undo last commit (soft reset, keeps changes staged)
-  --setup           Interactive configuration setup
-  --config          Show current configuration
-  --edit-prompt     Edit custom prompt for advanced users
-  -h, --help        Show this help message
-  -v, --version     Show version number
+  -e, --emoji           Use Gitmoji commit format (emoji prefix)
+  -c, --conv            Use Conventional Commits format (overrides config)
+  -C, --custom          Use custom prompt file (~/.commit-ai-prompt.txt)
+  -m, --message         Provide context/hint for AI (e.g., -m "fix login bug")
+  -b, --branch          Create to branch and deploy (e.g. -b feature-name)
+  -p, --preview         Preview commit message only (no commit)
+  -y, --yes             Skip confirmation prompt (auto-commit)
+  -s, -S, --sync        Auto sync remote (git add -> stash -> pull -> stash pop -> add) before commit
+  -u, --undo            Undo last commit (soft reset, keeps changes staged)
+  -B, --base-url <url>  OpenAI-compatible Base URL (e.g. https://openrouter.ai/api/v1)
+  --setup               Interactive configuration setup
+  --config              Show current configuration
+  --edit-prompt         Edit custom prompt for advanced users
+  -h, --help            Show this help message
+  -v, --version         Show version number
 
 PROVIDERS:
-  gemini            Google Gemini (default)
-  openai            OpenAI GPT models
+  gemini                Google Gemini (default)
+  openai                OpenAI or any OpenAI-compatible provider:
+                        - OpenAI (https://api.openai.com/v1)
+                        - OpenRouter (https://openrouter.ai/api/v1)
+                        - Groq (https://api.groq.com/openai/v1)
+                        - DeepSeek (https://api.deepseek.com/v1)
+                        - Ollama (http://localhost:11434/v1)
+                        - LM Studio / LocalAI / Cerebras / vLLM / Custom
 
 EXAMPLES:
   commit-ai                          # Use configured defaults
@@ -485,6 +655,10 @@ while [[ $# -gt 0 ]]; do
     --setup) SETUP_MODE=true ;;
     --config) SHOW_CONFIG=true ;;
     --edit-prompt) EDIT_PROMPT=true ;;
+    --base-url|-B)
+      shift
+      OPENAI_BASE_URL="$1"
+      ;;
     --branch|-b)
       shift
       TARGET_BRANCH="$1"
@@ -530,17 +704,22 @@ done
 
 # Check API key based on provider
 if [[ "$PROVIDER" == "openai" ]]; then
-  if [ -z "$OPENAI_API_KEY" ]; then
+  BASE_URL="${OPENAI_BASE_URL:-https://api.openai.com/v1}"
+  IS_LOCAL=false
+  if [[ "$BASE_URL" =~ localhost|127\.0\.0\.1|11434|1234 ]]; then
+    IS_LOCAL=true
+  fi
+  if [ -z "$OPENAI_API_KEY" ] && ! $IS_LOCAL; then
     echo "❌ OPENAI_API_KEY is not set."
     echo "ℹ️  Run 'commit-ai --setup' to configure, or:"
-    echo "   export OPENAI_API_KEY=\"your_api_key\""
+    echo "   export OPENAI_API_KEY="your_api_key""
     exit 1
   fi
 else
   if [ -z "$GEMINI_API_KEY" ]; then
     echo "❌ GEMINI_API_KEY is not set."
     echo "ℹ️  Run 'commit-ai --setup' to configure, or:"
-    echo "   export GEMINI_API_KEY=\"your_api_key\""
+    echo "   export GEMINI_API_KEY="your_api_key""
     exit 1
   fi
 fi
@@ -601,7 +780,7 @@ if git diff --cached --quiet; then
 fi
 
 DIFF=$(git diff --cached --unified=3 \
-  | grep -E '^\+|^-|^@@|^diff --git' \
+  | grep -E '^\+|^\-|^@@|^diff --git' \
   | head -c "$MAX_CHARS")
 
 FILES=$(git diff --cached --name-only)
@@ -690,22 +869,35 @@ fi
 # API REQUEST
 # -------------------------------------------------
 if [[ "$PROVIDER" == "openai" ]]; then
-  # OpenAI API
-  JSON=$(jq -n --arg text "$PROMPT" '{
-    model: "'"$DEFAULT_MODEL"'",
+  BASE_URL="${OPENAI_BASE_URL:-https://api.openai.com/v1}"
+  BASE_URL="${BASE_URL%/}"
+  if [[ "$BASE_URL" == *"/chat/completions" ]]; then
+    ENDPOINT_URL="$BASE_URL"
+  else
+    ENDPOINT_URL="${BASE_URL}/chat/completions"
+  fi
+
+  JSON=$(jq -n --arg text "$PROMPT" --arg model "$DEFAULT_MODEL" '{
+    model: $model,
     messages: [{ role: "user", content: $text }],
     max_tokens: 100
   }')
 
-  RESPONSE=$(curl -s \
-    -X POST \
-    "https://api.openai.com/v1/chat/completions" \
-    -H "Content-Type: application/json" \
-    -H "Authorization: Bearer $OPENAI_API_KEY" \
-    -d "$JSON"
-  )
+  CURL_CMD=(curl -s -X POST "$ENDPOINT_URL" -H "Content-Type: application/json")
 
-  COMMIT_MSG=$(echo "$RESPONSE" | jq -r '.choices[0].message.content')
+  if [ -n "$OPENAI_API_KEY" ]; then
+    CURL_CMD+=(-H "Authorization: Bearer $OPENAI_API_KEY")
+  elif [[ "$BASE_URL" =~ localhost|127\.0\.0\.1|11434|1234 ]]; then
+    CURL_CMD+=(-H "Authorization: Bearer none")
+  fi
+
+  if [[ "$BASE_URL" =~ openrouter\.ai ]]; then
+    CURL_CMD+=(-H "HTTP-Referer: https://github.com/jhowk14/commit-ai" -H "X-Title: commit-ai")
+  fi
+
+  RESPONSE=$("${CURL_CMD[@]}" -d "$JSON")
+
+  COMMIT_MSG=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
 else
   # Gemini API
   JSON=$(jq -n --arg text "$PROMPT" '{
@@ -720,15 +912,16 @@ else
     -d "$JSON"
   )
 
-  COMMIT_MSG=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text')
+  COMMIT_MSG=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text // empty')
 fi
 
 if [ -z "$COMMIT_MSG" ] || [ "$COMMIT_MSG" = "null" ]; then
   echo "❌ Failed to generate commit message."
-  if [[ "$PROVIDER" == "openai" ]]; then
-    echo "$RESPONSE" | jq -r '.error.message // empty'
+  ERROR_DETAIL=$(echo "$RESPONSE" | jq -r '.error.message // .error // .message // empty' 2>/dev/null || echo "")
+  if [ -n "$ERROR_DETAIL" ]; then
+    echo "⚠️  API Error: $ERROR_DETAIL"
   else
-    echo "$RESPONSE" | jq -r '.error.message // empty'
+    echo "⚠️  Raw response: $RESPONSE"
   fi
   exit 1
 fi
