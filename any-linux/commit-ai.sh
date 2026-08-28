@@ -2,7 +2,7 @@
 set -e
 
 # ================= CONFIG =================
-VERSION="1.6.0"
+VERSION="1.6.1"
 MAX_CHARS=14000
 CONFIG_FILE="$HOME/.commit-ai.conf"
 CUSTOM_PROMPT_FILE="$HOME/.commit-ai-prompt.txt"
@@ -290,7 +290,7 @@ interactive_setup() {
         groq) current_model="llama-3.3-70b-versatile" ;;
         deepseek) current_model="deepseek-chat" ;;
         ollama) current_model="llama3.2" ;;
-        cerebras) current_model="llama-3.3-70b" ;;
+        cerebras) current_model="gpt-oss-120b" ;;
         *) current_model="gpt-4o-mini" ;;
       esac
     fi
@@ -400,19 +400,21 @@ interactive_setup() {
         esac
       done
     elif [[ "$chosen_preset" == "cerebras" ]]; then
-      echo "   1) llama-3.3-70b (recommended)"
-      echo "   2) llama3.1-8b"
-      echo "   3) Custom model name"
+      echo "   1) gpt-oss-120b (recommended)"
+      echo "   2) llama-3.3-70b"
+      echo "   3) llama3.1-8b"
+      echo "   4) Custom model name"
       echo
       local model_choice
       while true; do
-        read -p "Choose model [current: $current_model] (1-3): " model_choice
+        read -p "Choose model [current: $current_model] (1-4): " model_choice
         case "$model_choice" in
-          1) current_model="llama-3.3-70b"; break ;;
-          2) current_model="llama3.1-8b"; break ;;
-          3) read -p "Enter Cerebras model name: " current_model; break ;;
+          1) current_model="gpt-oss-120b"; break ;;
+          2) current_model="llama-3.3-70b"; break ;;
+          3) current_model="llama3.1-8b"; break ;;
+          4) read -p "Enter Cerebras model name: " current_model; break ;;
           "") break ;;
-          *) echo "⚠️  Invalid option. Please enter 1-3." ;;
+          *) echo "⚠️  Invalid option. Please enter 1-4." ;;
         esac
       done
     else
@@ -780,7 +782,7 @@ if git diff --cached --quiet; then
 fi
 
 DIFF=$(git diff --cached --unified=3 \
-  | grep -E '^\+|^\-|^@@|^diff --git' \
+  | grep -E '^(\+|-)|^@@|^diff --git' \
   | head -c "$MAX_CHARS")
 
 FILES=$(git diff --cached --name-only)
@@ -877,11 +879,22 @@ if [[ "$PROVIDER" == "openai" ]]; then
     ENDPOINT_URL="${BASE_URL}/chat/completions"
   fi
 
-  JSON=$(jq -n --arg text "$PROMPT" --arg model "$DEFAULT_MODEL" '{
-    model: $model,
-    messages: [{ role: "user", content: $text }],
-    max_tokens: 100
-  }')
+  if [[ "$BASE_URL" == *"cerebras.ai" ]] && [[ "$DEFAULT_MODEL" == gpt-oss-* ]]; then
+    # gpt-oss usa parte do orçamento de saída para raciocínio. O limite
+    # genérico de 100 tokens pode terminar antes da mensagem de commit.
+    JSON=$(jq -n --arg text "$PROMPT" --arg model "$DEFAULT_MODEL" '{
+      model: $model,
+      messages: [{ role: "user", content: $text }],
+      max_completion_tokens: 256,
+      reasoning_effort: "low"
+    }')
+  else
+    JSON=$(jq -n --arg text "$PROMPT" --arg model "$DEFAULT_MODEL" '{
+      model: $model,
+      messages: [{ role: "user", content: $text }],
+      max_tokens: 100
+    }')
+  fi
 
   CURL_CMD=(curl -s -X POST "$ENDPOINT_URL" -H "Content-Type: application/json")
 
@@ -921,7 +934,12 @@ if [ -z "$COMMIT_MSG" ] || [ "$COMMIT_MSG" = "null" ]; then
   if [ -n "$ERROR_DETAIL" ]; then
     echo "⚠️  API Error: $ERROR_DETAIL"
   else
-    echo "⚠️  Raw response: $RESPONSE"
+    FINISH_REASON=$(echo "$RESPONSE" | jq -r '.choices[0].finish_reason // empty' 2>/dev/null || true)
+    if [ "$FINISH_REASON" = "length" ]; then
+      echo "⚠️  The model reached its output limit before returning a commit message."
+    else
+      echo "⚠️  The API response did not contain a commit message."
+    fi
   fi
   exit 1
 fi
