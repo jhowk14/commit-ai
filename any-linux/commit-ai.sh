@@ -2,7 +2,7 @@
 set -e
 
 # ================= CONFIG =================
-VERSION="1.6.1"
+VERSION="1.6.2"
 MAX_CHARS=14000
 CONFIG_FILE="$HOME/.commit-ai.conf"
 CUSTOM_PROMPT_FILE="$HOME/.commit-ai-prompt.txt"
@@ -879,15 +879,33 @@ if [[ "$PROVIDER" == "openai" ]]; then
     ENDPOINT_URL="${BASE_URL}/chat/completions"
   fi
 
+  IS_CEREBRAS_REASONING_MODEL=false
   if [[ "$BASE_URL" == *"cerebras.ai" ]] && [[ "$DEFAULT_MODEL" == gpt-oss-* ]]; then
-    # gpt-oss usa parte do orçamento de saída para raciocínio. O limite
-    # genérico de 100 tokens pode terminar antes da mensagem de commit.
-    JSON=$(jq -n --arg text "$PROMPT" --arg model "$DEFAULT_MODEL" '{
-      model: $model,
-      messages: [{ role: "user", content: $text }],
-      max_completion_tokens: 256,
-      reasoning_effort: "low"
-    }')
+    IS_CEREBRAS_REASONING_MODEL=true
+  fi
+
+  build_openai_payload() {
+    local completion_limit="$1"
+
+    if $IS_CEREBRAS_REASONING_MODEL; then
+      # O orçamento inclui os tokens internos de raciocínio do gpt-oss.
+      jq -n --arg text "$PROMPT" --arg model "$DEFAULT_MODEL" --argjson limit "$completion_limit" '{
+        model: $model,
+        messages: [{ role: "user", content: $text }],
+        max_completion_tokens: $limit,
+        reasoning_effort: "low"
+      }'
+    else
+      jq -n --arg text "$PROMPT" --arg model "$DEFAULT_MODEL" '{
+        model: $model,
+        messages: [{ role: "user", content: $text }],
+        max_tokens: 100
+      }'
+    fi
+  }
+
+  if $IS_CEREBRAS_REASONING_MODEL; then
+    JSON=$(build_openai_payload 512)
   else
     JSON=$(jq -n --arg text "$PROMPT" --arg model "$DEFAULT_MODEL" '{
       model: $model,
@@ -911,6 +929,16 @@ if [[ "$PROVIDER" == "openai" ]]; then
   RESPONSE=$("${CURL_CMD[@]}" -d "$JSON")
 
   COMMIT_MSG=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
+
+  # Alguns pedidos fazem o modelo gastar mais tokens de raciocínio. Só nesse
+  # caso excepcional, repetimos uma vez com teto maior; respostas normais não
+  # fazem uma segunda chamada nem consomem tokens adicionais.
+  if $IS_CEREBRAS_REASONING_MODEL && { [ -z "$COMMIT_MSG" ] || [ "$COMMIT_MSG" = "null" ]; } \
+    && [ "$(echo "$RESPONSE" | jq -r '.choices[0].finish_reason // empty' 2>/dev/null || true)" = "length" ]; then
+    JSON=$(build_openai_payload 1024)
+    RESPONSE=$("${CURL_CMD[@]}" -d "$JSON")
+    COMMIT_MSG=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
+  fi
 else
   # Gemini API
   JSON=$(jq -n --arg text "$PROMPT" '{
