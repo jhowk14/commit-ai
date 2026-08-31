@@ -2,7 +2,7 @@
 set -e
 
 # ================= CONFIG =================
-VERSION="1.6.2"
+VERSION="1.6.3"
 MAX_CHARS=14000
 CONFIG_FILE="$HOME/.commit-ai.conf"
 CUSTOM_PROMPT_FILE="$HOME/.commit-ai-prompt.txt"
@@ -884,16 +884,46 @@ if [[ "$PROVIDER" == "openai" ]]; then
     IS_CEREBRAS_REASONING_MODEL=true
   fi
 
+  CEREBRAS_PROMPT="$PROMPT"
+  if $IS_CEREBRAS_REASONING_MODEL && ! $USE_CUSTOM_PROMPT; then
+    if $EMOJI_MODE; then
+      COMMIT_FORMAT_RULES='Use exactly one Gitmoji followed by a space and an imperative English message. Start the message with a capital letter. Maximum 72 characters.'
+    else
+      COMMIT_FORMAT_RULES='Use exactly <type>: <message>, with one type from feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert. Use imperative English, lowercase message, maximum 72 characters.'
+    fi
+
+    # O GPT-OSS não precisa do histórico para esta decisão simples. Um pedido
+    # compacto reduz os tokens de entrada e evita gastar o orçamento de saída
+    # em raciocínio desnecessário antes de produzir a mensagem final.
+    CEREBRAS_PROMPT=$(cat <<EOF
+Generate one commit message for the staged change.
+
+Staged files:
+$FILES
+
+Relevant diff:
+$DIFF
+
+Rules: $COMMIT_FORMAT_RULES No period. Return only the commit message.
+EOF
+)
+  fi
+
   build_openai_payload() {
     local completion_limit="$1"
 
     if $IS_CEREBRAS_REASONING_MODEL; then
       # O orçamento inclui os tokens internos de raciocínio do gpt-oss.
-      jq -n --arg text "$PROMPT" --arg model "$DEFAULT_MODEL" --argjson limit "$completion_limit" '{
+      jq -n --arg text "$CEREBRAS_PROMPT" --arg model "$DEFAULT_MODEL" --argjson limit "$completion_limit" '{
         model: $model,
-        messages: [{ role: "user", content: $text }],
+        messages: [
+          { role: "system", content: "Return only the final commit message. Do not include analysis or explanation." },
+          { role: "user", content: $text }
+        ],
         max_completion_tokens: $limit,
-        reasoning_effort: "low"
+        reasoning_effort: "low",
+        reasoning_format: "hidden",
+        temperature: 0
       }'
     else
       jq -n --arg text "$PROMPT" --arg model "$DEFAULT_MODEL" '{
