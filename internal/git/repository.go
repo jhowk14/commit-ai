@@ -24,24 +24,24 @@ func (r Repository) Ensure(ctx context.Context) error {
 }
 
 func (r Repository) HasStaged(ctx context.Context) (bool, error) {
-	_, err := r.run(ctx, "diff", "--cached", "--quiet")
+	out, err := r.run(ctx, "diff", "--cached", "--quiet")
 	if err == nil {
 		return false, nil
 	}
 	if exitError, ok := err.(*exec.ExitError); ok && exitError.ExitCode() == 1 {
 		return true, nil
 	}
-	return false, r.commandError("verificar alterações preparadas", err)
+	return false, r.commandError("verificar alterações preparadas", out, err)
 }
 
 func (r Repository) Context(ctx context.Context) (Context, error) {
 	diff, err := r.run(ctx, "diff", "--cached", "--unified=3")
 	if err != nil {
-		return Context{}, r.commandError("ler diff", err)
+		return Context{}, r.commandError("ler diff", diff, err)
 	}
 	files, err := r.run(ctx, "diff", "--cached", "--name-only")
 	if err != nil {
-		return Context{}, r.commandError("listar arquivos", err)
+		return Context{}, r.commandError("listar arquivos", files, err)
 	}
 	history := ""
 	hasCommit, err := r.hasCommit(ctx)
@@ -51,21 +51,21 @@ func (r Repository) Context(ctx context.Context) (Context, error) {
 	if hasCommit {
 		history, err = r.run(ctx, "log", "--oneline", "-n", "20")
 		if err != nil {
-			return Context{}, r.commandError("ler histórico", err)
+			return Context{}, r.commandError("ler histórico", history, err)
 		}
 	}
 	return Context{Files: strings.TrimSpace(files), Diff: relevantDiff(diff), History: strings.TrimSpace(history)}, nil
 }
 
 func (r Repository) hasCommit(ctx context.Context) (bool, error) {
-	_, err := r.run(ctx, "rev-parse", "--verify", "--quiet", "HEAD")
+	out, err := r.run(ctx, "rev-parse", "--verify", "--quiet", "HEAD")
 	if err == nil {
 		return true, nil
 	}
 	if exitError, ok := err.(*exec.ExitError); ok && exitError.ExitCode() == 1 {
 		return false, nil
 	}
-	return false, r.commandError("verificar histórico", err)
+	return false, r.commandError("verificar histórico", out, err)
 }
 
 type Context struct{ Files, Diff, History string }
@@ -88,13 +88,14 @@ func (r Repository) CreateOrSwitchBranch(ctx context.Context, branch string) err
 	if branch == "" {
 		return nil
 	}
+	var out string
 	var err error
 	if _, lookupErr := r.run(ctx, "show-ref", "--verify", "--quiet", "refs/heads/"+branch); lookupErr == nil {
-		_, err = r.run(ctx, "checkout", branch)
+		out, err = r.run(ctx, "checkout", branch)
 	} else {
-		_, err = r.run(ctx, "checkout", "-b", branch)
+		out, err = r.run(ctx, "checkout", "-b", branch)
 	}
-	return r.commandError("criar ou trocar a branch", err)
+	return r.commandError("criar ou trocar a branch", out, err)
 }
 
 func (r Repository) Sync(ctx context.Context, language i18n.Language, progress Progress) (resultErr error) {
@@ -104,27 +105,27 @@ func (r Repository) Sync(ctx context.Context, language i18n.Language, progress P
 		}
 	}
 	report(i18n.T(language, "sync_stage"))
-	if _, err := r.run(ctx, "add", "-A"); err != nil {
-		return r.commandError("adicionar alterações", err)
+	if out, err := r.run(ctx, "add", "-A"); err != nil {
+		return r.commandError("adicionar alterações", out, err)
 	}
 	status, err := r.run(ctx, "status", "--porcelain")
 	if err != nil {
-		return r.commandError("verificar alterações", err)
+		return r.commandError("verificar alterações", status, err)
 	}
 	stashed := strings.TrimSpace(status) != ""
 	needsRestore := false
 	restoreStash := func() error {
 		report(i18n.T(language, "sync_restore"))
-		if _, err := r.run(context.WithoutCancel(ctx), "stash", "pop", "--index"); err != nil {
-			return r.commandError("restaurar alterações", err)
+		if out, err := r.run(context.WithoutCancel(ctx), "stash", "pop", "--index"); err != nil {
+			return r.commandError("restaurar alterações", out, err)
 		}
 		needsRestore = false
 		return nil
 	}
 	if stashed {
 		report(i18n.T(language, "sync_stash"))
-		if _, err := r.run(ctx, "stash", "push", "-u", "-m", "commit-ai-auto-stash"); err != nil {
-			return r.commandError("guardar alterações temporariamente", err)
+		if out, err := r.run(ctx, "stash", "push", "-u", "-m", "commit-ai-auto-stash"); err != nil {
+			return r.commandError("guardar alterações temporariamente", out, err)
 		}
 		needsRestore = true
 		// A synchronization failure or Ctrl+C must never leave a hidden stash
@@ -144,7 +145,7 @@ func (r Repository) Sync(ctx context.Context, language i18n.Language, progress P
 	}
 	branch, err := r.run(ctx, "rev-parse", "--abbrev-ref", "HEAD")
 	if err != nil {
-		return r.commandError("identificar branch atual", err)
+		return r.commandError("identificar branch atual", branch, err)
 	}
 	branch = strings.TrimSpace(branch)
 	report(i18n.T(language, "sync_pull", branch))
@@ -161,36 +162,56 @@ func (r Repository) Sync(ctx context.Context, language i18n.Language, progress P
 		}
 	}
 	report(i18n.T(language, "sync_prepare"))
-	_, err = r.run(ctx, "add", "-A")
-	return r.commandError("adicionar alterações após sincronização", err)
+	out, err := r.run(ctx, "add", "-A")
+	return r.commandError("adicionar alterações após sincronização", out, err)
 }
 
 func (r Repository) Commit(ctx context.Context, message string) error {
-	_, err := r.run(ctx, "commit", "-m", message)
-	return r.commandError("criar commit", err)
+	out, err := r.run(ctx, "commit", "-m", message)
+	return r.commandError("criar commit", out, err)
 }
 
 func (r Repository) Undo(ctx context.Context) (string, error) {
 	message, err := r.run(ctx, "log", "-1", "--pretty=%B")
 	if err != nil {
-		return "", r.commandError("ler o último commit", err)
+		return "", r.commandError("ler o último commit", message, err)
 	}
-	if _, err := r.run(ctx, "reset", "--soft", "HEAD~1"); err != nil {
-		return "", r.commandError("desfazer o último commit", err)
+	out, err := r.run(ctx, "reset", "--soft", "HEAD~1")
+	if err != nil {
+		return "", r.commandError("desfazer o último commit", out, err)
 	}
 	return strings.TrimSpace(message), nil
 }
 
 func (r Repository) Push(ctx context.Context, branch string) error {
-	if branch == "" {
-		_, err := r.run(ctx, "push")
-		return r.commandError("enviar alterações", err)
+	if branch != "" {
+		if out, err := r.run(ctx, "push", "-u", "origin", branch); err == nil {
+			return nil
+		} else if _, err2 := r.run(ctx, "push", "origin", branch); err2 == nil {
+			return nil
+		} else {
+			return r.commandError("enviar alterações", out, err)
+		}
 	}
-	if _, err := r.run(ctx, "push", "-u", "origin", branch); err == nil {
+
+	out, err := r.run(ctx, "push")
+	if err == nil {
 		return nil
 	}
-	_, err := r.run(ctx, "push", "origin", branch)
-	return r.commandError("enviar alterações", err)
+
+	currentBranch, branchErr := r.run(ctx, "rev-parse", "--abbrev-ref", "HEAD")
+	if branchErr == nil {
+		cb := strings.TrimSpace(currentBranch)
+		if cb != "" && cb != "HEAD" {
+			if _, err2 := r.run(ctx, "push", "-u", "origin", cb); err2 == nil {
+				return nil
+			} else if _, err3 := r.run(ctx, "push", "origin", cb); err3 == nil {
+				return nil
+			}
+		}
+	}
+
+	return r.commandError("enviar alterações", out, err)
 }
 
 func (r Repository) run(ctx context.Context, args ...string) (string, error) {
@@ -200,9 +221,20 @@ func (r Repository) run(ctx context.Context, args ...string) (string, error) {
 	return string(output), err
 }
 
-func (r Repository) commandError(action string, err error) error {
+func (r Repository) commandError(action string, output string, err error) error {
 	if err == nil {
 		return nil
+	}
+	out := strings.TrimSpace(output)
+	if out != "" {
+		lines := strings.Split(out, "\n")
+		for _, line := range lines {
+			l := strings.TrimSpace(line)
+			if l != "" && !strings.HasPrefix(l, "On branch") && !strings.HasPrefix(l, "Your branch") {
+				return fmt.Errorf("não foi possível %s: %s", action, l)
+			}
+		}
+		return fmt.Errorf("não foi possível %s: %s", action, lines[0])
 	}
 	return fmt.Errorf("não foi possível %s: %w", action, err)
 }
