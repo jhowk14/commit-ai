@@ -44,7 +44,7 @@ O instalador baixa o executável nativo e adiciona a pasta do usuário ao `PATH`
 Após a publicação no AUR:
 
 ```bash
-paru -Syu commit-ai
+paru -S commit-ai
 commit-ai --setup
 ```
 
