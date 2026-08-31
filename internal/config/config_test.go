@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -85,7 +86,7 @@ func TestValidateProviderAndShowDoNotLeakFullKeys(t *testing.T) {
 func TestSetupPersistsInteractiveValues(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	input := "en\ngitmoji\ns\n1\ns\nopenai\nhttps://api.cerebras.ai/v1\ngpt-oss-120b\ntest-key\n"
+	input := "2\n2\n1\n1\n1\n2\n7\n1\ntest-key\n"
 	var out bytes.Buffer
 	cfg, err := Setup(Default(), bytes.NewBufferString(input), &out)
 	if err != nil {
@@ -94,12 +95,53 @@ func TestSetupPersistsInteractiveValues(t *testing.T) {
 	if cfg.Language != "en" || cfg.Format != "gitmoji" || !cfg.AutoConfirm || cfg.PushMode != PushAlways || !cfg.UseCustomPrompt || cfg.Provider != "openai" || cfg.Model != "gpt-oss-120b" {
 		t.Fatalf("setup: %#v", cfg)
 	}
+	if !bytes.Contains(out.Bytes(), []byte("Cerebras")) || !bytes.Contains(out.Bytes(), []byte("gpt-oss-120b")) || bytes.Contains(out.Bytes(), []byte("test-key")) {
+		t.Fatalf("setup não exibiu os presets ou expôs a chave:\n%s", out.String())
+	}
+	if !bytes.Contains(out.Bytes(), []byte("Choose")) || !bytes.Contains(out.Bytes(), []byte("Configuration complete")) {
+		t.Fatalf("setup não aplicou o idioma escolhido:\n%s", out.String())
+	}
 	loaded, err := Load()
 	if err != nil {
 		t.Fatal(err)
 	}
 	if loaded != cfg {
 		t.Fatalf("configuração persistida: %#v != %#v", loaded, cfg)
+	}
+}
+
+func TestProviderPresetsChooseCompatibleEndpointsAndModels(t *testing.T) {
+	for _, testCase := range []struct {
+		url, preset, model string
+	}{
+		{"https://api.cerebras.ai/v1", "cerebras", "gpt-oss-120b"},
+		{"https://api.groq.com/openai/v1", "groq", "llama-3.3-70b-versatile"},
+		{"http://localhost:11434/v1", "ollama", "llama3.2"},
+		{"https://example.test/v1", "custom", "gpt-4o-mini"},
+	} {
+		if got := endpointPresetForURL(testCase.url); got != testCase.preset {
+			t.Fatalf("preset para %s: %q", testCase.url, got)
+		}
+		if got := defaultModel("openai", testCase.preset); got != testCase.model {
+			t.Fatalf("modelo padrão para %s: %q", testCase.preset, got)
+		}
+	}
+}
+
+func TestSetupMasksStoredKeyAndRejectsInvalidMenuChoice(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	current := Default()
+	current.GeminiAPIKey = "secret-key"
+	// The first invalid choice must be rejected before the normal menu flow.
+	input := "bad\n1\n\n\n\n\n\n\n\n"
+	var out bytes.Buffer
+	if _, err := Setup(current, bytes.NewBufferString(input), &out); err != nil {
+		t.Fatal(err)
+	}
+	contents := out.String()
+	if !strings.Contains(contents, "Opção inválida") || strings.Contains(contents, "secret-key") || !strings.Contains(contents, "****-key") {
+		t.Fatalf("saída insegura ou sem validação:\n%s", contents)
 	}
 }
 
