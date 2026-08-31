@@ -100,6 +100,53 @@ func TestPreviewDoesNotCommit(t *testing.T) {
 	}
 }
 
+func TestRunSyncReportsEveryStep(t *testing.T) {
+	home, repoDir, remote := t.TempDir(), t.TempDir(), t.TempDir()
+	t.Setenv("HOME", home)
+	runGit(t, repoDir, "init")
+	runGit(t, repoDir, "config", "user.name", "Commit AI Test")
+	runGit(t, repoDir, "config", "user.email", "commit-ai@example.test")
+	if err := os.WriteFile(filepath.Join(repoDir, "file.txt"), []byte("before\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, repoDir, "add", "file.txt")
+	runGit(t, repoDir, "commit", "-m", "chore: initial")
+	runGit(t, remote, "init", "--bare")
+	runGit(t, repoDir, "remote", "add", "origin", remote)
+	runGit(t, repoDir, "push", "-u", "origin", "HEAD")
+	if err := os.WriteFile(filepath.Join(repoDir, "file.txt"), []byte("before\nafter\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		_, _ = writer.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"fix: report sync progress"}}]}`))
+	}))
+	defer server.Close()
+	cfg := config.Default()
+	cfg.Provider, cfg.Model, cfg.OpenAIBaseURL, cfg.OpenAIAPIKey = "openai", "test-model", server.URL, "test"
+	if err := config.Save(cfg); err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	application := New("2.0.0-test", strings.NewReader(""), &output, &output)
+	application.workDir, application.client = repoDir, ai.Client{HTTPClient: server.Client()}
+	if err := application.Run(context.Background(), []string{"--sync", "--yes"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{
+		"Auto-sync ativado",
+		"Adicionando alterações locais",
+		"Guardando alterações locais",
+		"Baixando atualizações",
+		"Restaurando alterações salvas",
+		"Preparando os arquivos",
+	} {
+		if !strings.Contains(output.String(), expected) {
+			t.Fatalf("saída não contém %q:\n%s", expected, output.String())
+		}
+	}
+}
+
 func TestParseSupportsEveryPublicOption(t *testing.T) {
 	opts, err := parse([]string{"-e", "-c", "-C", "-p", "-y", "-s", "-u", "-m", "hint", "-b", "feature/test", "-B", "http://localhost:1234/v1", "--setup", "--config", "--edit-prompt", "--help", "--version"}, &bytes.Buffer{})
 	if err != nil {
@@ -152,16 +199,20 @@ func TestHelpVersionConfigAndCustomPromptErrors(t *testing.T) {
 	}
 }
 
-func TestConfirmationAcceptsReplacementAndCancellation(t *testing.T) {
+func TestMessageEditorAcceptsReplacementAndDefault(t *testing.T) {
 	var output bytes.Buffer
 	application := New("test", strings.NewReader("fix: custom\n"), &output, &output)
-	message, err := application.confirmMessage("fix: generated")
+	message, err := application.editCommitMessage("fix: generated")
 	if err != nil || message != "fix: custom" {
 		t.Fatalf("substituição: %q %v", message, err)
 	}
-	application.in = strings.NewReader("n\n")
-	if _, err := application.confirmMessage("fix: generated"); err == nil {
-		t.Fatal("cancelamento deveria falhar")
+	application.in = strings.NewReader("\n")
+	message, err = application.editCommitMessage("fix: generated")
+	if err != nil || message != "fix: generated" {
+		t.Fatalf("sugestão padrão: %q %v", message, err)
+	}
+	if !strings.Contains(output.String(), "Enter mantém a sugestão") {
+		t.Fatalf("saída do editor: %s", output.String())
 	}
 }
 

@@ -121,8 +121,12 @@ func TestSyncPreservesAndStagesLocalChanges(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(repo.Dir, "README.md"), []byte("base\nlocal change\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := repo.Sync(context.Background()); err != nil {
+	progress := make([]string, 0)
+	if err := repo.Sync(context.Background(), func(message string) { progress = append(progress, message) }); err != nil {
 		t.Fatal(err)
+	}
+	if len(progress) < 3 || !strings.Contains(progress[0], "Adicionando") {
+		t.Fatalf("progresso de sync: %#v", progress)
 	}
 	hasStaged, err := repo.HasStaged(context.Background())
 	if err != nil || !hasStaged {

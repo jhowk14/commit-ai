@@ -16,14 +16,14 @@
 ### Linux e macOS
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jhowk14/commit-ai/v2.0.1/any-linux/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/jhowk14/commit-ai/v2.0.2/any-linux/install.sh | bash
 commit-ai --setup
 ```
 
 Também é possível compilar a partir do código-fonte:
 
 ```bash
-go install github.com/jhowk14/commit-ai/v2/cmd/commit-ai@v2.0.1
+go install github.com/jhowk14/commit-ai/v2/cmd/commit-ai@v2.0.2
 ```
 
 ### Windows
@@ -31,7 +31,7 @@ go install github.com/jhowk14/commit-ai/v2/cmd/commit-ai@v2.0.1
 No PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/jhowk14/commit-ai/v2.0.1/windows/install.ps1 | iex
+irm https://raw.githubusercontent.com/jhowk14/commit-ai/v2.0.2/windows/install.ps1 | iex
 commit-ai --setup
 ```
 

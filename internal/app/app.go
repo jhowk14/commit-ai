@@ -100,8 +100,8 @@ func (a *App) Run(ctx context.Context, args []string) error {
 		}
 	}
 	if opts.sync {
-		fmt.Fprintln(a.out, "🔄 Sincronizando alterações com a branch remota...")
-		if err := repo.Sync(ctx); err != nil {
+		fmt.Fprintln(a.out, "🔄 Auto-sync ativado. Sincronizando com a branch remota...")
+		if err := repo.Sync(ctx, func(message string) { fmt.Fprintln(a.out, message) }); err != nil {
 			return err
 		}
 	}
@@ -133,7 +133,7 @@ func (a *App) Run(ctx context.Context, args []string) error {
 		return nil
 	}
 	if !opts.yes && !cfg.AutoConfirm {
-		message, err = a.confirmMessage(message)
+		message, err = a.editCommitMessage(message)
 		if err != nil {
 			return err
 		}
@@ -244,16 +244,16 @@ func (a *App) editPrompt() error {
 	return command.Run()
 }
 
-func (a *App) confirmMessage(message string) (string, error) {
-	fmt.Fprintf(a.out, "\nMensagem gerada:\n  %s\n\nPressione Enter para confirmar, digite outra mensagem ou 'n' para cancelar: ", message)
+func (a *App) editCommitMessage(message string) (string, error) {
+	if input, output, ok := terminalFiles(a.in, a.out); ok {
+		return editPreFilledLine(input, output, message)
+	}
+	fmt.Fprintf(a.out, "\n📝 Mensagem gerada (Enter mantém a sugestão):\n  %s\n\n> ", message)
 	value, err := bufio.NewReader(a.in).ReadString('\n')
 	if err != nil && !errors.Is(err, io.EOF) {
 		return "", err
 	}
 	value = strings.TrimSpace(value)
-	if strings.EqualFold(value, "n") || strings.EqualFold(value, "não") || strings.EqualFold(value, "nao") {
-		return "", errors.New("commit cancelado")
-	}
 	if value != "" {
 		return value, nil
 	}

@@ -11,6 +11,8 @@ const maxDiffBytes = 14000
 
 type Repository struct{ Dir string }
 
+type Progress func(string)
+
 func (r Repository) Ensure(ctx context.Context) error {
 	output, err := r.run(ctx, "rev-parse", "--is-inside-work-tree")
 	if err != nil || strings.TrimSpace(output) != "true" {
@@ -93,7 +95,13 @@ func (r Repository) CreateOrSwitchBranch(ctx context.Context, branch string) err
 	return r.commandError("criar ou trocar a branch", err)
 }
 
-func (r Repository) Sync(ctx context.Context) error {
+func (r Repository) Sync(ctx context.Context, progress Progress) error {
+	report := func(message string) {
+		if progress != nil {
+			progress(message)
+		}
+	}
+	report("➕ Adicionando alterações locais ao staging...")
 	if _, err := r.run(ctx, "add", "-A"); err != nil {
 		return r.commandError("adicionar alterações", err)
 	}
@@ -103,6 +111,7 @@ func (r Repository) Sync(ctx context.Context) error {
 	}
 	stashed := strings.TrimSpace(status) != ""
 	if stashed {
+		report("📦 Guardando alterações locais temporariamente...")
 		if _, err := r.run(ctx, "stash", "push", "-u", "-m", "commit-ai-auto-stash"); err != nil {
 			return r.commandError("guardar alterações temporariamente", err)
 		}
@@ -111,19 +120,24 @@ func (r Repository) Sync(ctx context.Context) error {
 	if err != nil {
 		return r.commandError("identificar branch atual", err)
 	}
-	if _, err := r.run(ctx, "pull", "origin", strings.TrimSpace(branch), "--rebase"); err != nil {
-		if _, fallbackErr := r.run(ctx, "pull", "origin", strings.TrimSpace(branch)); fallbackErr != nil {
+	branch = strings.TrimSpace(branch)
+	report(fmt.Sprintf("⬇️ Baixando atualizações de origin/%s...", branch))
+	if _, err := r.run(ctx, "pull", "origin", branch, "--rebase"); err != nil {
+		if _, fallbackErr := r.run(ctx, "pull", "origin", branch); fallbackErr != nil {
 			if stashed {
+				report("📂 Restaurando alterações salvas...")
 				_, _ = r.run(ctx, "stash", "pop")
 			}
-			return fmt.Errorf("não foi possível sincronizar com origin/%s: %w", strings.TrimSpace(branch), fallbackErr)
+			return fmt.Errorf("não foi possível sincronizar com origin/%s: %w", branch, fallbackErr)
 		}
 	}
 	if stashed {
+		report("📂 Restaurando alterações salvas...")
 		if _, err := r.run(ctx, "stash", "pop"); err != nil {
 			return r.commandError("restaurar alterações", err)
 		}
 	}
+	report("➕ Preparando os arquivos para o commit...")
 	_, err = r.run(ctx, "add", "-A")
 	return r.commandError("adicionar alterações após sincronização", err)
 }
