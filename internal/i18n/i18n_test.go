@@ -19,7 +19,7 @@ func TestNormalizeAndMessages(t *testing.T) {
 	if !IsValid("en") || IsValid("es") {
 		t.Fatal("validação de idioma incorreta")
 	}
-	if got := T(English, "sync_pull", "main"); got != "⬇️ Pulling updates from origin/main..." {
+	if got := T(English, "sync_fetch", "main"); got != "⬇️ Checking updates from origin/main..." {
 		t.Fatalf("tradução: %q", got)
 	}
 }

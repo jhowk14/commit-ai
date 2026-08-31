@@ -15,6 +15,15 @@ type Repository struct{ Dir string }
 
 type Progress func(string)
 
+type fetchedRemoteState uint8
+
+const (
+	remoteUpToDate fetchedRemoteState = iota
+	remoteBehindLocal
+	remoteAheadLocal
+	remoteDiverged
+)
+
 func (r Repository) Ensure(ctx context.Context) error {
 	output, err := r.run(ctx, "rev-parse", "--is-inside-work-tree")
 	if err != nil || strings.TrimSpace(output) != "true" {
@@ -104,10 +113,28 @@ func (r Repository) Sync(ctx context.Context, language i18n.Language, progress P
 			progress(message)
 		}
 	}
-	report(i18n.T(language, "sync_stage"))
-	if out, err := r.run(ctx, "add", "-A"); err != nil {
-		return r.commandError("adicionar alterações", out, err)
+	branch, err := r.currentBranch(ctx)
+	if err != nil {
+		return err
 	}
+
+	// Fetching is safe with local changes. Most syncs find no remote commit to
+	// apply, so doing it before stashing avoids two full worktree operations.
+	report(fmt.Sprintf(i18n.T(language, "sync_fetch"), branch))
+	if out, err := r.run(ctx, "fetch", "--quiet", "--no-tags", "origin", branch); err != nil {
+		return r.commandError(fmt.Sprintf("buscar atualizações de origin/%s", branch), out, err)
+	}
+
+	remoteState, err := r.fetchedRemoteState(ctx)
+	if err != nil {
+		return err
+	}
+	if remoteState == remoteUpToDate || remoteState == remoteBehindLocal {
+		report(i18n.T(language, "sync_prepare"))
+		out, err := r.run(ctx, "add", "-A")
+		return r.commandError("preparar os arquivos para o commit", out, err)
+	}
+
 	status, err := r.run(ctx, "status", "--porcelain")
 	if err != nil {
 		return r.commandError("verificar alterações", status, err)
@@ -143,16 +170,9 @@ func (r Repository) Sync(ctx context.Context, language i18n.Language, progress P
 			}
 		}()
 	}
-	branch, err := r.run(ctx, "rev-parse", "--abbrev-ref", "HEAD")
-	if err != nil {
-		return r.commandError("identificar branch atual", branch, err)
-	}
-	branch = strings.TrimSpace(branch)
-	report(i18n.T(language, "sync_pull", branch))
-	if _, err := r.run(ctx, "pull", "origin", branch, "--rebase"); err != nil {
-		if _, fallbackErr := r.run(ctx, "pull", "origin", branch); fallbackErr != nil {
-			return fmt.Errorf("não foi possível sincronizar com origin/%s: %w", branch, fallbackErr)
-		}
+	report(fmt.Sprintf(i18n.T(language, "sync_update"), branch))
+	if err := r.applyFetchedUpdate(ctx, remoteState); err != nil {
+		return err
 	}
 	if stashed {
 		// The explicit restore preserves the familiar progress order on success.
@@ -164,6 +184,70 @@ func (r Repository) Sync(ctx context.Context, language i18n.Language, progress P
 	report(i18n.T(language, "sync_prepare"))
 	out, err := r.run(ctx, "add", "-A")
 	return r.commandError("adicionar alterações após sincronização", out, err)
+}
+
+func (r Repository) currentBranch(ctx context.Context) (string, error) {
+	branch, err := r.run(ctx, "rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil {
+		return "", r.commandError("identificar branch atual", branch, err)
+	}
+	branch = strings.TrimSpace(branch)
+	if branch == "" || branch == "HEAD" {
+		return "", fmt.Errorf("não é possível sincronizar em detached HEAD")
+	}
+	return branch, nil
+}
+
+func (r Repository) fetchedRemoteState(ctx context.Context) (fetchedRemoteState, error) {
+	local, err := r.run(ctx, "rev-parse", "HEAD")
+	if err != nil {
+		return remoteUpToDate, r.commandError("identificar commit local", local, err)
+	}
+	remote, err := r.run(ctx, "rev-parse", "FETCH_HEAD")
+	if err != nil {
+		return remoteUpToDate, r.commandError("identificar atualização remota", remote, err)
+	}
+	if strings.TrimSpace(local) == strings.TrimSpace(remote) {
+		return remoteUpToDate, nil
+	}
+	localAhead, err := r.isAncestor(ctx, "FETCH_HEAD", "HEAD")
+	if err != nil {
+		return remoteUpToDate, err
+	}
+	if localAhead {
+		return remoteBehindLocal, nil
+	}
+	fastForward, err := r.isAncestor(ctx, "HEAD", "FETCH_HEAD")
+	if err != nil {
+		return remoteUpToDate, err
+	}
+	if fastForward {
+		return remoteAheadLocal, nil
+	}
+	return remoteDiverged, nil
+}
+
+func (r Repository) applyFetchedUpdate(ctx context.Context, state fetchedRemoteState) error {
+	if state == remoteAheadLocal {
+		out, err := r.run(ctx, "merge", "--ff-only", "FETCH_HEAD")
+		return r.commandError("aplicar atualização remota", out, err)
+	}
+	if state != remoteDiverged {
+		return nil
+	}
+	out, err := r.run(ctx, "rebase", "FETCH_HEAD")
+	return r.commandError("reaplicar commits locais sobre origin", out, err)
+}
+
+func (r Repository) isAncestor(ctx context.Context, ancestor, descendant string) (bool, error) {
+	out, err := r.run(ctx, "merge-base", "--is-ancestor", ancestor, descendant)
+	if err == nil {
+		return true, nil
+	}
+	if exitError, ok := err.(*exec.ExitError); ok && exitError.ExitCode() == 1 {
+		return false, nil
+	}
+	return false, r.commandError("comparar histórico local e remoto", out, err)
 }
 
 func (r Repository) Commit(ctx context.Context, message string) error {
@@ -185,13 +269,8 @@ func (r Repository) Undo(ctx context.Context) (string, error) {
 
 func (r Repository) Push(ctx context.Context, branch string) error {
 	if branch != "" {
-		if out, err := r.run(ctx, "push", "-u", "origin", branch); err == nil {
-			return nil
-		} else if _, err2 := r.run(ctx, "push", "origin", branch); err2 == nil {
-			return nil
-		} else {
-			return r.commandError("enviar alterações", out, err)
-		}
+		out, err := r.run(ctx, "push", "-u", "origin", branch)
+		return r.commandError("enviar alterações", out, err)
 	}
 
 	out, err := r.run(ctx, "push")
@@ -204,8 +283,6 @@ func (r Repository) Push(ctx context.Context, branch string) error {
 		cb := strings.TrimSpace(currentBranch)
 		if cb != "" && cb != "HEAD" {
 			if _, err2 := r.run(ctx, "push", "-u", "origin", cb); err2 == nil {
-				return nil
-			} else if _, err3 := r.run(ctx, "push", "origin", cb); err3 == nil {
 				return nil
 			}
 		}

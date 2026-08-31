@@ -178,10 +178,7 @@ func TestRunSyncReportsEveryStep(t *testing.T) {
 	}
 	for _, expected := range []string{
 		"Auto-sync ativado",
-		"Adicionando alterações locais",
-		"Guardando alterações locais",
-		"Baixando atualizações",
-		"Restaurando alterações salvas",
+		"Verificando atualizações",
 		"Preparando os arquivos",
 	} {
 		if !strings.Contains(output.String(), expected) {

@@ -127,7 +127,7 @@ func TestSyncPreservesAndStagesLocalChanges(t *testing.T) {
 	if err := repo.Sync(context.Background(), i18n.Portuguese, func(message string) { progress = append(progress, message) }); err != nil {
 		t.Fatal(err)
 	}
-	if len(progress) < 3 || !strings.Contains(progress[0], "Adicionando") {
+	if len(progress) < 2 || !strings.Contains(progress[0], "Verificando") {
 		t.Fatalf("progresso de sync: %#v", progress)
 	}
 	hasStaged, err := repo.HasStaged(context.Background())
@@ -139,7 +139,7 @@ func TestSyncPreservesAndStagesLocalChanges(t *testing.T) {
 	}
 }
 
-func TestSyncRestoresStashWhenPullFails(t *testing.T) {
+func TestSyncFetchFailurePreservesUnstagedLocalChanges(t *testing.T) {
 	repo := testRepository(t)
 	if err := os.WriteFile(filepath.Join(repo.Dir, "README.md"), []byte("base\nlocal change\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -151,8 +151,73 @@ func TestSyncRestoresStashWhenPullFails(t *testing.T) {
 	if got := strings.TrimSpace(runGit(t, repo.Dir, "stash", "list")); got != "" {
 		t.Fatalf("stash não foi restaurado: %s", got)
 	}
-	if got := strings.TrimSpace(runGit(t, repo.Dir, "diff", "--cached", "--", "README.md")); !strings.Contains(got, "+local change") {
-		t.Fatalf("alteração não foi restaurada ao staging: %s", got)
+	if got := strings.TrimSpace(runGit(t, repo.Dir, "diff", "--", "README.md")); !strings.Contains(got, "+local change") {
+		t.Fatalf("alteração local foi perdida: %s", got)
+	}
+}
+
+func TestSyncFetchesBeforeStashingAndAppliesRemoteFastForward(t *testing.T) {
+	repo := testRepository(t)
+	remote := t.TempDir()
+	runGit(t, remote, "init", "--bare")
+	runGit(t, repo.Dir, "remote", "add", "origin", remote)
+	runGit(t, repo.Dir, "push", "-u", "origin", "HEAD")
+
+	writerParent := t.TempDir()
+	writer := filepath.Join(writerParent, "writer")
+	runGit(t, writerParent, "clone", remote, writer)
+	runGit(t, writer, "config", "user.name", "Remote Writer")
+	runGit(t, writer, "config", "user.email", "remote@example.test")
+	if err := os.WriteFile(filepath.Join(writer, "remote.txt"), []byte("remote change\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, writer, "add", "remote.txt")
+	runGit(t, writer, "commit", "-m", "feat: remote change")
+	runGit(t, writer, "push", "origin", "HEAD")
+
+	if err := os.WriteFile(filepath.Join(repo.Dir, "local.txt"), []byte("local change\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Sync(context.Background(), i18n.Portuguese, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := runGit(t, repo.Dir, "show", "HEAD:remote.txt"); got != "remote change\n" {
+		t.Fatalf("atualização remota ausente: %q", got)
+	}
+	if got := strings.TrimSpace(runGit(t, repo.Dir, "diff", "--cached", "--", "local.txt")); !strings.Contains(got, "+local change") {
+		t.Fatalf("alteração local não foi restaurada ao staging: %s", got)
+	}
+	if got := strings.TrimSpace(runGit(t, repo.Dir, "stash", "list")); got != "" {
+		t.Fatalf("stash pendente após sync: %s", got)
+	}
+}
+
+func TestSyncSkipsStashWhenOnlyLocalBranchIsAhead(t *testing.T) {
+	repo := testRepository(t)
+	remote := t.TempDir()
+	runGit(t, remote, "init", "--bare")
+	runGit(t, repo.Dir, "remote", "add", "origin", remote)
+	runGit(t, repo.Dir, "push", "-u", "origin", "HEAD")
+	if err := os.WriteFile(filepath.Join(repo.Dir, "committed-locally.txt"), []byte("local commit\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, repo.Dir, "add", "committed-locally.txt")
+	runGit(t, repo.Dir, "commit", "-m", "feat: local only")
+	if err := os.WriteFile(filepath.Join(repo.Dir, "pending.txt"), []byte("pending change\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	progress := make([]string, 0)
+	if err := repo.Sync(context.Background(), i18n.Portuguese, func(message string) { progress = append(progress, message) }); err != nil {
+		t.Fatal(err)
+	}
+	for _, message := range progress {
+		if strings.Contains(message, "Guardando alterações") {
+			t.Fatalf("sync fez stash desnecessário: %#v", progress)
+		}
+	}
+	if got := strings.TrimSpace(runGit(t, repo.Dir, "diff", "--cached", "--", "pending.txt")); !strings.Contains(got, "+pending change") {
+		t.Fatalf("alteração pendente não foi preparada: %s", got)
 	}
 }
 
