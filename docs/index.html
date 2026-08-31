@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 
 <head>
   <meta charset="UTF-8">
@@ -9,9 +9,9 @@
   <title>commit-ai — AI-Powered Git Commit Messages 🚀</title>
   <meta name="title" content="commit-ai — AI-Powered Git Commit Messages 🚀">
   <meta name="description"
-    content="Generate perfect Git commit messages in seconds! AI-powered by Gemini & OpenAI with Gitmoji 🎨, Conventional Commits 📦, and Auto-Sync 🔄 support. Works on Linux & Windows.">
+    content="Mensagens de commit com IA em um binário nativo para Linux, macOS e Windows. Gemini, OpenAI compatível, Cerebras, Gitmoji e Conventional Commits.">
   <meta name="keywords"
-    content="git, commit, ai, gemini, openai, gpt, gitmoji, conventional commits, auto-sync, automation, bash, powershell, linux, windows, developer tools, productivity">
+    content="git, commit, ia, gemini, openai, cerebras, gitmoji, conventional commits, linux, macos, windows, go, developer tools">
   <meta name="author" content="jhowk14">
   <meta name="robots" content="index, follow">
 
@@ -46,12 +46,12 @@
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "commit-ai",
-    "description": "Generate high-quality Git commit messages automatically using Google Gemini & OpenAI.",
+    "description": "Cross-platform AI-powered Git commit message generator.",
     "url": "https://jhowk14.github.io/commit-ai/",
     "applicationCategory": "DeveloperApplication",
-    "operatingSystem": ["Linux", "Windows"],
+    "operatingSystem": ["Linux", "macOS", "Windows"],
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-    "softwareVersion": "1.5.0"
+    "softwareVersion": "2.0.1"
   }
   </script>
 </head>
@@ -70,7 +70,7 @@
 
     <div class="hero-content">
       <h1 class="logo">commit<span class="logo-emoji">🤖</span>ai</h1>
-      <p class="tagline">AI-powered Git commit messages with Gemini, OpenAI & Auto-Sync 🔄</p>
+      <p class="tagline">Commits com IA em um binário nativo para Linux, macOS e Windows</p>
 
       <div class="cta-buttons">
         <a href="https://github.com/jhowk14/commit-ai" class="btn btn-primary" target="_blank">
@@ -78,9 +78,9 @@
             <path
               d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
           </svg>
-          GitHub v1.5.0
+          Ver release 2.0
         </a>
-        <a href="#install" class="btn btn-secondary">Get Started</a>
+        <a href="#install" class="btn btn-secondary">Instalar</a>
       </div>
     </div>
 
@@ -97,44 +97,44 @@
   <main class="main">
     <!-- Features Section -->
     <section class="features">
-      <h2 class="section-title">Features</h2>
+      <h2 class="section-title">Recursos</h2>
       <div class="features-grid">
         <div class="feature-card">
           <span class="feature-icon">🤖</span>
-          <h3>Multi-Provider</h3>
-          <p>Supports Google Gemini & OpenAI GPT models</p>
+          <h3>Vários provedores</h3>
+          <p>Gemini e qualquer API compatível com OpenAI</p>
         </div>
         <div class="feature-card">
           <span class="feature-icon">🔄</span>
-          <h3>Auto-Sync Remote</h3>
-          <p>Stash, pull, pop & add automatically before commit</p>
+          <h3>Sync remoto</h3>
+          <p>Guarda, sincroniza e restaura alterações antes do commit</p>
         </div>
         <div class="feature-card">
           <span class="feature-icon">🔀</span>
-          <h3>Branch Deploy</h3>
-          <p>Auto-detects active branch or creates target branch</p>
+          <h3>Branch e push</h3>
+          <p>Cria ou troca a branch e envia depois do commit</p>
         </div>
         <div class="feature-card">
           <span class="feature-icon">🎨</span>
-          <h3>Gitmoji Mode</h3>
-          <p>Beautiful emoji-prefixed commits</p>
+          <h3>Gitmoji</h3>
+          <p>Mensagens com um Gitmoji adequado</p>
         </div>
         <div class="feature-card">
           <span class="feature-icon">📦</span>
-          <h3>Conventional</h3>
-          <p>Standard Conventional Commits format</p>
+          <h3>Conventional Commits</h3>
+          <p>Formato padronizado e editável antes de confirmar</p>
         </div>
         <div class="feature-card">
           <span class="feature-icon">💬</span>
-          <h3>Context Hints</h3>
-          <p>Provide hints for better AI messages</p>
+          <h3>Binário nativo</h3>
+          <p>Sem Bash, PowerShell, curl ou jq em tempo de execução</p>
         </div>
       </div>
     </section>
 
     <!-- Demo Section -->
     <section class="demo">
-      <h2 class="section-title">How It Works</h2>
+      <h2 class="section-title">Como funciona</h2>
       <div class="demo-container">
         <div class="terminal">
           <div class="terminal-header">
@@ -148,19 +148,19 @@
               <span class="prompt">$</span> commit-ai -c -s
             </div>
             <div class="terminal-line output">
-              <span class="generated">🔄 Syncing with remote origin/main...</span>
+              <span class="generated">🔄 Sincronizando alterações com a branch remota...</span>
             </div>
             <div class="terminal-line output">
-              <span class="generated">feat: add document parser route for large file attachments</span>
+              <span class="generated">feat: add document parser route</span>
             </div>
             <div class="terminal-line output">
-              <span class="generated">🚀 Pushed to origin/main successfully!</span>
+              <span class="generated">✅ Commit criado: feat: add document parser route</span>
             </div>
             <div class="terminal-line">
               <span class="prompt">$</span> commit-ai -s -c -b new-feature
             </div>
             <div class="terminal-line output">
-              <span class="generated">🌱 Switching to new-feature & deploying...</span>
+              <span class="generated">🌱 Abrindo branch "new-feature"...</span>
             </div>
           </div>
         </div>
@@ -169,10 +169,10 @@
 
     <!-- Install Section -->
     <section class="install" id="install">
-      <h2 class="section-title">Installation</h2>
+      <h2 class="section-title">Instalação</h2>
 
       <div class="install-tabs">
-        <button class="tab-btn active" data-tab="linux">🐧 Linux</button>
+        <button class="tab-btn active" data-tab="linux">🐧 Linux e macOS</button>
         <button class="tab-btn" data-tab="aur">🔷 Arch (AUR)</button>
         <button class="tab-btn windows" data-tab="windows">🪟 Windows</button>
       </div>
@@ -189,20 +189,14 @@
             </div>
             <div class="terminal-body">
               <div class="terminal-line">
-                <span class="prompt">$</span> git clone https://github.com/jhowk14/commit-ai.git
+                <span class="prompt">$</span> curl -fsSL https://raw.githubusercontent.com/jhowk14/commit-ai/v2.0.1/any-linux/install.sh | bash
               </div>
               <div class="terminal-line">
-                <span class="prompt">$</span> cd commit-ai/any-linux
-              </div>
-              <div class="terminal-line">
-                <span class="prompt">$</span> chmod +x install.sh
-              </div>
-              <div class="terminal-line">
-                <span class="prompt">$</span> ./install.sh
+                <span class="prompt">$</span> commit-ai --setup
               </div>
             </div>
           </div>
-          <p class="install-note">The installer will guide you through configuration</p>
+          <p class="install-note">Baixa o binário nativo correto para a arquitetura e mantém sua configuração existente.</p>
         </div>
 
         <div class="tab-content" id="aur">
@@ -216,17 +210,17 @@
             </div>
             <div class="terminal-body">
               <div class="terminal-line">
-                <span class="prompt">$</span> yay -S commit-ai
+                <span class="prompt">$</span> paru -Syu --rebuild commit-ai
               </div>
               <div class="terminal-line comment">
-                <span class="comment-text"># Then run setup</span>
+                <span class="comment-text"># Configure o provedor de IA</span>
               </div>
               <div class="terminal-line">
                 <span class="prompt">$</span> commit-ai --setup
               </div>
             </div>
           </div>
-          <p class="install-note">or use <code>paru -S commit-ai</code></p>
+          <p class="install-note">O pacote AUR compila o binário Go localmente.</p>
         </div>
 
         <div class="tab-content" id="windows">
@@ -240,24 +234,21 @@
             </div>
             <div class="terminal-body">
               <div class="terminal-line">
-                <span class="prompt">PS&gt;</span> git clone https://github.com/jhowk14/commit-ai.git
+                <span class="prompt">PS&gt;</span> irm https://raw.githubusercontent.com/jhowk14/commit-ai/v2.0.1/windows/install.ps1 | iex
               </div>
               <div class="terminal-line">
-                <span class="prompt">PS&gt;</span> cd commit-ai\windows
-              </div>
-              <div class="terminal-line">
-                <span class="prompt">PS&gt;</span> .\install.ps1
+                <span class="prompt">PS&gt;</span> commit-ai --setup
               </div>
             </div>
           </div>
-          <p class="install-note">The installer adds to PATH and runs interactive setup</p>
+          <p class="install-note">O instalador baixa o .exe nativo e adiciona a pasta ao PATH do usuário.</p>
         </div>
       </div>
 
       <div class="api-setup">
-        <h3>⚙️ Configuration</h3>
+        <h3>⚙️ Configuração</h3>
         <p class="install-note" style="margin-bottom: 16px;">
-          Run <code>commit-ai --setup</code> anytime to change preferences
+          Execute <code>commit-ai --setup</code> a qualquer momento para alterar suas preferências.
         </p>
 
         <div class="terminal">
@@ -276,16 +267,19 @@
               <span class="config-key">auto_confirm</span>=<span class="config-value">false</span>
             </div>
             <div class="terminal-line config">
-              <span class="config-key">auto_sync</span>=<span class="config-value">true</span>
-            </div>
-            <div class="terminal-line config">
               <span class="config-key">ask_push</span>=<span class="config-value">false</span>
             </div>
             <div class="terminal-line config">
-              <span class="config-key">provider</span>=<span class="config-value">gemini</span>
+              <span class="config-key">use_custom_prompt</span>=<span class="config-value">false</span>
             </div>
             <div class="terminal-line config">
-              <span class="config-key">model</span>=<span class="config-value">gemini-3-flash-preview</span>
+              <span class="config-key">provider</span>=<span class="config-value">openai</span>
+            </div>
+            <div class="terminal-line config">
+              <span class="config-key">model</span>=<span class="config-value">gpt-oss-120b</span>
+            </div>
+            <div class="terminal-line config">
+              <span class="config-key">openai_base_url</span>=<span class="config-value">https://api.cerebras.ai/v1</span>
             </div>
           </div>
         </div>
@@ -294,55 +288,55 @@
 
     <!-- Options Section -->
     <section class="options">
-      <h2 class="section-title">Options</h2>
+      <h2 class="section-title">Opções</h2>
       <div class="options-grid">
         <div class="option-card">
           <code class="option-flag">-s, -S, --sync</code>
-          <p>Auto sync remote before commit (stash, pull, pop, add)</p>
+          <p>Sincroniza antes do commit (stash, pull, pop e add)</p>
         </div>
         <div class="option-card">
           <code class="option-flag">-b, --branch</code>
-          <p>Switch or create target branch & auto-push</p>
+          <p>Cria ou troca a branch e envia após o commit</p>
         </div>
         <div class="option-card">
           <code class="option-flag">-c, --conv</code>
-          <p>Use Conventional Commits format</p>
+          <p>Usa o formato Conventional Commits</p>
         </div>
         <div class="option-card">
           <code class="option-flag">-e, --emoji</code>
-          <p>Use Gitmoji commit format</p>
+          <p>Usa o formato Gitmoji</p>
         </div>
         <div class="option-card">
           <code class="option-flag">-m, --message</code>
-          <p>Provide context/hint for AI</p>
+          <p>Fornece contexto adicional à IA</p>
         </div>
         <div class="option-card">
           <code class="option-flag">-p, --preview</code>
-          <p>Preview message without committing</p>
+          <p>Mostra a mensagem sem criar commit</p>
         </div>
         <div class="option-card">
           <code class="option-flag">-y, --yes</code>
-          <p>Skip confirmation prompt</p>
+          <p>Cria o commit sem interação</p>
         </div>
         <div class="option-card">
           <code class="option-flag">--setup</code>
-          <p>Interactive configuration wizard</p>
+          <p>Abre a configuração interativa</p>
         </div>
         <div class="option-card">
           <code class="option-flag">--config</code>
-          <p>Show current configuration</p>
+          <p>Mostra a configuração sem revelar chaves</p>
         </div>
         <div class="option-card">
           <code class="option-flag">-u, --undo</code>
-          <p>Undo last commit (soft reset)</p>
+          <p>Desfaz o último commit e mantém alterações preparadas</p>
         </div>
         <div class="option-card">
           <code class="option-flag">-C, --custom</code>
-          <p>Use custom prompt file</p>
+          <p>Usa o arquivo de prompt customizado</p>
         </div>
         <div class="option-card">
           <code class="option-flag">--edit-prompt</code>
-          <p>Edit custom AI prompt file</p>
+          <p>Cria ou edita o prompt customizado</p>
         </div>
       </div>
     </section>
@@ -351,7 +345,7 @@
   <!-- Footer -->
   <footer class="footer">
     <p>Made with ❤️ by <a href="https://github.com/jhowk14" target="_blank">jhowk14</a></p>
-    <p class="footer-note">MIT License © 2025</p>
+    <p class="footer-note">MIT License © 2026 · commit-ai 2.0</p>
   </footer>
 
   <script>

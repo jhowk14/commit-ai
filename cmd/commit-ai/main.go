@@ -8,7 +8,7 @@ import (
 	"github.com/jhowk14/commit-ai/v2/internal/app"
 )
 
-var version = "2.0.0"
+var version = "2.0.1"
 
 func main() {
 	application := app.New(version, os.Stdin, os.Stdout, os.Stderr)

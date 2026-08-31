@@ -1,4 +1,4 @@
-# commit-ai configuration file
+# commit-ai 2.0 configuration file
 # Location: ~/.commit-ai.conf
 
 # Default commit format: conventional | gitmoji
@@ -23,7 +23,7 @@ provider=openai
 # - Groq: llama-3.3-70b-versatile, llama-3.1-8b-instant
 # - DeepSeek: deepseek-chat, deepseek-reasoner
 # - Ollama: llama3.2, qwen2.5-coder:7b, deepseek-r1:8b
-# - Cerebras: llama-3.3-70b, llama3.1-8b
+# - Cerebras: gpt-oss-120b, llama-3.3-70b, gemma-4-31b
 # Examples for Gemini:
 # - Gemini: gemini-3-flash-preview, gemini-2.5-flash, gemini-2.0-flash
 model=gpt-4o-mini
@@ -38,6 +38,8 @@ model=gpt-4o-mini
 # - Cerebras: https://api.cerebras.ai/v1
 openai_base_url=https://api.openai.com/v1
 
-# API Keys (optional - can also use environment variables GEMINI_API_KEY or OPENAI_API_KEY)
+# API Keys (optional - native provider variables are also supported:
+# GEMINI_API_KEY, OPENAI_API_KEY, CEREBRAS_API_KEY, OPENROUTER_API_KEY,
+# GROQ_API_KEY and DEEPSEEK_API_KEY)
 # gemini_api_key=your_gemini_key_here
 # openai_api_key=your_openai_or_compatible_key_here

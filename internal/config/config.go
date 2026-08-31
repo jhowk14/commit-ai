@@ -139,10 +139,28 @@ func (cfg Config) ResolvedGeminiKey() string {
 }
 
 func (cfg Config) ResolvedOpenAIKey() string {
-	if value := os.Getenv("OPENAI_API_KEY"); value != "" {
-		return value
+	for _, name := range compatibleKeyVariables(cfg.OpenAIBaseURL) {
+		if value := os.Getenv(name); value != "" {
+			return value
+		}
 	}
 	return cfg.OpenAIAPIKey
+}
+
+func compatibleKeyVariables(baseURL string) []string {
+	baseURL = strings.ToLower(baseURL)
+	switch {
+	case strings.Contains(baseURL, "cerebras.ai"):
+		return []string{"CEREBRAS_API_KEY", "OPENAI_API_KEY"}
+	case strings.Contains(baseURL, "openrouter.ai"):
+		return []string{"OPENROUTER_API_KEY", "OPENAI_API_KEY"}
+	case strings.Contains(baseURL, "groq.com"):
+		return []string{"GROQ_API_KEY", "OPENAI_API_KEY"}
+	case strings.Contains(baseURL, "deepseek.com"):
+		return []string{"DEEPSEEK_API_KEY", "OPENAI_API_KEY"}
+	default:
+		return []string{"OPENAI_API_KEY"}
+	}
 }
 
 func (cfg Config) ValidateProvider() error {

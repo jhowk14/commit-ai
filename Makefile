@@ -1,10 +1,13 @@
-VERSION ?= 2.0.0
+VERSION ?= 2.0.1
 DIST := dist
 
-.PHONY: test vet build clean
+.PHONY: test test-race vet build clean
 
 test:
 	go test ./... -count=1
+
+test-race:
+	go test -race ./... -count=1
 
 vet:
 	go vet ./...

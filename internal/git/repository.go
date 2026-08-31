@@ -39,11 +39,29 @@ func (r Repository) Context(ctx context.Context) (Context, error) {
 	if err != nil {
 		return Context{}, r.commandError("listar arquivos", err)
 	}
-	history, err := r.run(ctx, "log", "--oneline", "-n", "20")
+	history := ""
+	hasCommit, err := r.hasCommit(ctx)
 	if err != nil {
-		return Context{}, r.commandError("ler histórico", err)
+		return Context{}, err
+	}
+	if hasCommit {
+		history, err = r.run(ctx, "log", "--oneline", "-n", "20")
+		if err != nil {
+			return Context{}, r.commandError("ler histórico", err)
+		}
 	}
 	return Context{Files: strings.TrimSpace(files), Diff: relevantDiff(diff), History: strings.TrimSpace(history)}, nil
+}
+
+func (r Repository) hasCommit(ctx context.Context) (bool, error) {
+	_, err := r.run(ctx, "rev-parse", "--verify", "--quiet", "HEAD")
+	if err == nil {
+		return true, nil
+	}
+	if exitError, ok := err.(*exec.ExitError); ok && exitError.ExitCode() == 1 {
+		return false, nil
+	}
+	return false, r.commandError("verificar histórico", err)
 }
 
 type Context struct{ Files, Diff, History string }

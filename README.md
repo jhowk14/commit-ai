@@ -16,14 +16,14 @@
 ### Linux e macOS
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jhowk14/commit-ai/v2.0.0/any-linux/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/jhowk14/commit-ai/v2.0.1/any-linux/install.sh | bash
 commit-ai --setup
 ```
 
 Também é possível compilar a partir do código-fonte:
 
 ```bash
-go install github.com/jhowk14/commit-ai/v2/cmd/commit-ai@v2.0.0
+go install github.com/jhowk14/commit-ai/v2/cmd/commit-ai@v2.0.1
 ```
 
 ### Windows
@@ -31,7 +31,7 @@ go install github.com/jhowk14/commit-ai/v2/cmd/commit-ai@v2.0.0
 No PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/jhowk14/commit-ai/v2.0.0/windows/install.ps1 | iex
+irm https://raw.githubusercontent.com/jhowk14/commit-ai/v2.0.1/windows/install.ps1 | iex
 commit-ai --setup
 ```
 
@@ -93,7 +93,7 @@ openai_base_url=https://api.cerebras.ai/v1
 openai_api_key=your_key_here
 ```
 
-As variáveis `GEMINI_API_KEY` e `OPENAI_API_KEY` têm prioridade sobre chaves salvas no arquivo. Para criar ou alterar a configuração, execute `commit-ai --setup`.
+As variáveis de ambiente têm prioridade sobre chaves salvas no arquivo: `GEMINI_API_KEY`, `OPENAI_API_KEY`, `CEREBRAS_API_KEY`, `OPENROUTER_API_KEY`, `GROQ_API_KEY` e `DEEPSEEK_API_KEY`. Para criar ou alterar a configuração, execute `commit-ai --setup`.
 
 O prompt customizado pode usar `{HISTORY}`, `{FILES}` e `{DIFF}`.
 

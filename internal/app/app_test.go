@@ -100,6 +100,71 @@ func TestPreviewDoesNotCommit(t *testing.T) {
 	}
 }
 
+func TestParseSupportsEveryPublicOption(t *testing.T) {
+	opts, err := parse([]string{"-e", "-c", "-C", "-p", "-y", "-s", "-u", "-m", "hint", "-b", "feature/test", "-B", "http://localhost:1234/v1", "--setup", "--config", "--edit-prompt", "--help", "--version"}, &bytes.Buffer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !opts.emoji || !opts.conventional || !opts.custom || !opts.preview || !opts.yes || !opts.sync || !opts.undo || !opts.setup || !opts.showConfig || !opts.editPrompt || !opts.help || !opts.version {
+		t.Fatalf("opções: %#v", opts)
+	}
+	if opts.message != "hint" || opts.branch != "feature/test" || opts.baseURL != "http://localhost:1234/v1" {
+		t.Fatalf("valores: %#v", opts)
+	}
+	if _, err := parse([]string{"--unknown"}, &bytes.Buffer{}); err == nil {
+		t.Fatal("flag desconhecida deveria falhar")
+	}
+}
+
+func TestHelpVersionConfigAndCustomPromptErrors(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	var output bytes.Buffer
+	application := New("2.0.0-test", strings.NewReader(""), &output, &output)
+	if err := application.Run(context.Background(), []string{"--help"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := application.Run(context.Background(), []string{"--version"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := application.Run(context.Background(), []string{"--config"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), "commit-ai v2.0.0-test") || !strings.Contains(output.String(), "Uso:") {
+		t.Fatalf("saída: %s", output.String())
+	}
+	if _, err := application.customPrompt(true); err == nil {
+		t.Fatal("prompt ausente deveria falhar")
+	}
+	path, err := config.CustomPromptPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("# comentário\n{FILES}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	prompt, err := application.customPrompt(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if prompt != "{FILES}" {
+		t.Fatalf("prompt: %q", prompt)
+	}
+}
+
+func TestConfirmationAcceptsReplacementAndCancellation(t *testing.T) {
+	var output bytes.Buffer
+	application := New("test", strings.NewReader("fix: custom\n"), &output, &output)
+	message, err := application.confirmMessage("fix: generated")
+	if err != nil || message != "fix: custom" {
+		t.Fatalf("substituição: %q %v", message, err)
+	}
+	application.in = strings.NewReader("n\n")
+	if _, err := application.confirmMessage("fix: generated"); err == nil {
+		t.Fatal("cancelamento deveria falhar")
+	}
+}
+
 func runGit(t *testing.T, dir string, args ...string) string {
 	t.Helper()
 	command := exec.Command("git", args...)

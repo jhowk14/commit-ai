@@ -97,12 +97,15 @@ func (c Client) generateOpenAI(ctx context.Context, cfg config.Config, input Inp
 	if !strings.HasSuffix(endpoint, "/chat/completions") {
 		endpoint += "/chat/completions"
 	}
-	isCerebrasReasoning := strings.Contains(strings.ToLower(baseURL), "cerebras.ai") && strings.HasPrefix(cfg.Model, "gpt-oss-")
+	isCerebrasReasoning := isCerebrasGPTOSS(baseURL, cfg.Model)
 	request := openAIRequest{Model: cfg.Model, Messages: []message{{Role: "user", Content: prompt}}}
 	if isCerebrasReasoning {
 		limit, temperature := 512, 0.0
 		request.Messages = []message{{Role: "system", Content: "Return only the final commit message. Do not include analysis or explanation."}, {Role: "user", Content: compactCerebrasPrompt(input)}}
 		request.MaxCompletionTokens, request.ReasoningEffort, request.ReasoningFormat, request.Temperature = &limit, "low", "hidden", &temperature
+	} else if usesCompletionTokenLimit(cfg.Model) {
+		limit := 100
+		request.MaxCompletionTokens = &limit
 	} else {
 		limit := 100
 		request.MaxTokens = &limit
@@ -126,6 +129,21 @@ func (c Client) generateOpenAI(ctx context.Context, cfg config.Config, input Inp
 		return normalize(message), nil
 	}
 	return "", responseError(response)
+}
+
+func isCerebrasGPTOSS(baseURL, model string) bool {
+	return strings.Contains(strings.ToLower(baseURL), "cerebras.ai") && strings.HasPrefix(strings.ToLower(model), "gpt-oss-")
+}
+
+// usesCompletionTokenLimit covers current OpenAI reasoning and GPT-5 models.
+// They reject max_tokens, while the broadly compatible Chat Completions APIs
+// (including OpenAI's GPT-4 family and local providers) continue to accept it.
+func usesCompletionTokenLimit(model string) bool {
+	model = strings.ToLower(strings.TrimSpace(model))
+	return strings.HasPrefix(model, "gpt-5") ||
+		strings.HasPrefix(model, "o1") ||
+		strings.HasPrefix(model, "o3") ||
+		strings.HasPrefix(model, "o4")
 }
 
 func (c Client) postOpenAI(ctx context.Context, endpoint, key string, payload openAIRequest) (openAIResponse, error) {
