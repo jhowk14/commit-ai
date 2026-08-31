@@ -3,6 +3,7 @@ package app
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -33,9 +34,13 @@ func New(version string, in io.Reader, out, err io.Writer) *App {
 }
 
 type options struct {
-	emoji, conventional, custom, preview, yes, sync, undo bool
-	setup, showConfig, editPrompt, help, version          bool
-	message, branch, baseURL                              string
+	emoji, conventional, custom, preview, yes, sync, undo, json bool
+	setup, showConfig, editPrompt, help, version                bool
+	message, branch, baseURL                                    string
+}
+
+type previewResponse struct {
+	Message string `json:"message"`
 }
 
 func (a *App) Run(ctx context.Context, args []string) error {
@@ -50,6 +55,9 @@ func (a *App) Run(ctx context.Context, args []string) error {
 	if opts.version {
 		fmt.Fprintf(a.out, "commit-ai v%s\n", a.version)
 		return nil
+	}
+	if opts.json && !opts.preview {
+		return errors.New("--json atualmente requer --preview")
 	}
 
 	cfg, err := config.Load()
@@ -131,6 +139,9 @@ func (a *App) Run(ctx context.Context, args []string) error {
 	}
 
 	if opts.preview {
+		if opts.json {
+			return json.NewEncoder(a.out).Encode(previewResponse{Message: message})
+		}
 		fmt.Fprintf(a.out, i18n.T(language, "preview"), message)
 		return nil
 	}
@@ -175,6 +186,7 @@ func parse(args []string, stderr io.Writer) (options, error) {
 	flags.BoolVar(&opts.custom, "custom", false, "usar prompt customizado")
 	flags.BoolVar(&opts.preview, "p", false, "prévia")
 	flags.BoolVar(&opts.preview, "preview", false, "prévia")
+	flags.BoolVar(&opts.json, "json", false, "resposta estruturada para integração")
 	flags.BoolVar(&opts.yes, "y", false, "confirmar automaticamente")
 	flags.BoolVar(&opts.yes, "yes", false, "confirmar automaticamente")
 	flags.BoolVar(&opts.sync, "s", false, "sincronizar antes")
@@ -285,6 +297,7 @@ Uso: commit-ai [opções]
   -s, -S, --sync           sincroniza e prepara alterações antes do commit
   -C, --custom             usa ~/.commit-ai-prompt.txt
   -p, --preview            mostra a mensagem sem criar commit
+      --json               retorna a prévia como JSON (requer --preview)
   -y, --yes                confirma sem interação
   -u, --undo               desfaz o último commit, mantendo alterações preparadas
   -B, --base-url <url>     base URL de API OpenAI compatível

@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -97,6 +98,41 @@ func TestPreviewDoesNotCommit(t *testing.T) {
 	}
 	if got := strings.TrimSpace(runGit(t, repoDir, "log", "-1", "--pretty=%s")); got != "chore: initial" {
 		t.Fatalf("preview criou commit: %q", got)
+	}
+}
+
+func TestPreviewJSONReturnsStructuredMessage(t *testing.T) {
+	home, repoDir := t.TempDir(), t.TempDir()
+	t.Setenv("HOME", home)
+	runGit(t, repoDir, "init")
+	runGit(t, repoDir, "config", "user.name", "Commit AI Test")
+	runGit(t, repoDir, "config", "user.email", "commit-ai@example.test")
+	if err := os.WriteFile(filepath.Join(repoDir, "file.txt"), []byte("change\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, repoDir, "add", "file.txt")
+
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		_, _ = writer.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"fix: return structured preview"}}]}`))
+	}))
+	defer server.Close()
+	cfg := config.Default()
+	cfg.Provider, cfg.Model, cfg.OpenAIBaseURL, cfg.OpenAIAPIKey = "openai", "test-model", server.URL, "test"
+	if err := config.Save(cfg); err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	application := New("test", strings.NewReader(""), &output, &output)
+	application.workDir, application.client = repoDir, ai.Client{HTTPClient: server.Client()}
+	if err := application.Run(context.Background(), []string{"--preview", "--json"}); err != nil {
+		t.Fatal(err)
+	}
+	var response previewResponse
+	if err := json.Unmarshal(output.Bytes(), &response); err != nil {
+		t.Fatalf("JSON inválido: %v\n%s", err, output.String())
+	}
+	if response.Message != "fix: return structured preview" {
+		t.Fatalf("mensagem: %q", response.Message)
 	}
 }
 

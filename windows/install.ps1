@@ -21,7 +21,7 @@
 #Requires -Version 5.1
 [CmdletBinding()]
 param(
-    [string]$Version = $(if ($env:COMMIT_AI_VERSION) { $env:COMMIT_AI_VERSION } else { "2.0.6" }),
+    [string]$Version = $(if ($env:COMMIT_AI_VERSION) { $env:COMMIT_AI_VERSION } else { "2.0.7" }),
     [string]$InstallDir = $(if ($env:COMMIT_AI_INSTALL_DIR) { $env:COMMIT_AI_INSTALL_DIR } else { Join-Path $HOME "bin" })
 )
 

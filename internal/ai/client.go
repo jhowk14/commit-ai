@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/jhowk14/commit-ai/v2/internal/config"
 	gitctx "github.com/jhowk14/commit-ai/v2/internal/git"
@@ -28,13 +29,50 @@ type Client struct{ HTTPClient *http.Client }
 
 func NewClient() Client { return Client{HTTPClient: &http.Client{Timeout: 45 * time.Second}} }
 
+type gitmojiAlias struct {
+	shortcode string
+	emoji     string
+}
+
+// Keep the aliases most often emitted by OpenAI-compatible models here. The
+// model is instructed to return Unicode, but accepting these aliases makes the
+// command robust when a provider ignores that output-format instruction.
+var gitmojiAliases = []gitmojiAlias{
+	{":adhesive_bandage:", "🩹"}, {":airplane:", "✈️"}, {":alembic:", "⚗️"},
+	{":alien:", "👽️"},
+	{":ambulance:", "🚑"}, {":art:", "🎨"}, {":arrow_down:", "⬇️"},
+	{":arrow_up:", "⬆️"}, {":beers:", "🍻"}, {":bookmark:", "🔖"},
+	{":bento:", "🍱"}, {":boom:", "💥"}, {":bricks:", "🧱"}, {":bug:", "🐛"},
+	{":building_construction:", "🏗️"}, {":bulb:", "💡"}, {":busts_in_silhouette:", "👥"},
+	{":camera_flash:", "📸"}, {":card_file_box:", "🗃️"},
+	{":chart_with_upwards_trend:", "📈"}, {":children_crossing:", "🚸"},
+	{":closed_lock_with_key:", "🔐"}, {":clown_face:", "🤡"}, {":coffin:", "⚰️"},
+	{":construction:", "🚧"}, {":construction_worker:", "👷"}, {":dizzy:", "💫"},
+	{":egg:", "🥚"}, {":fire:", "🔥"}, {":globe_with_meridians:", "🌐"},
+	{":green_heart:", "💚"}, {":hammer:", "🔨"}, {":heavy_minus_sign:", "➖"},
+	{":heavy_plus_sign:", "➕"}, {":iphone:", "📱"}, {":label:", "🏷️"},
+	{":lipstick:", "💄"}, {":lock:", "🔒"}, {":loud_sound:", "🔊"}, {":mag:", "🔍️"},
+	{":memo:", "📝"}, {":monocle_face:", "🧐"}, {":money_with_wings:", "💸"},
+	{":mute:", "🔇"}, {":necktie:", "👔"}, {":package:", "📦"},
+	{":page_facing_up:", "📄"}, {":passport_control:", "🛂"}, {":pencil2:", "✏️"},
+	{":poop:", "💩"}, {":pushpin:", "📌"}, {":recycle:", "♻️"}, {":rewind:", "⏪"},
+	{":rocket:", "🚀"}, {":rotating_light:", "🚨"}, {":safety_vest:", "🦺"},
+	{":seedling:", "🌱"}, {":see_no_evil:", "🙈"}, {":sparkles:", "✨"},
+	{":speech_balloon:", "💬"}, {":stethoscope:", "🩺"}, {":t-rex:", "🦖"},
+	{":tada:", "🎉"}, {":technologist:", "🧑‍💻"}, {":test_tube:", "🧪"},
+	{":thread:", "🧵"}, {":triangular_flag_on_post:", "🚩"}, {":truck:", "🚚"},
+	{":twisted_rightwards_arrows:", "🔀"}, {":warning:", "⚠️"}, {":wastebasket:", "🗑️"},
+	{":wheelchair:", "♿️"}, {":white_check_mark:", "✅"}, {":wrench:", "🔧"},
+	{":zap:", "⚡"}, {":goal_net:", "🥅"},
+}
+
 func (c Client) Generate(ctx context.Context, cfg config.Config, input Input) (string, error) {
 	if err := cfg.ValidateProvider(); err != nil {
 		return "", err
 	}
 	prompt := buildPrompt(input)
 	if cfg.Provider == "gemini" {
-		return c.generateGemini(ctx, cfg, prompt)
+		return c.generateGemini(ctx, cfg, prompt, input.Format)
 	}
 	return c.generateOpenAI(ctx, cfg, input, prompt)
 }
@@ -45,7 +83,7 @@ func buildPrompt(input Input) string {
 	}
 	formatRules := "EXACT format: <type>: <message>. Choose one of feat, fix, docs, style, refactor, perf, test, build, ci, chore or revert. Message starts lowercase."
 	if input.Format == "gitmoji" {
-		formatRules = "EXACT format: <gitmoji> <message>. Use one Gitmoji and start the English message with a capital letter."
+		formatRules = "You are a senior Git and Gitmoji expert. Choose ONLY ONE Gitmoji. EXACT format: <Unicode Gitmoji><space><Message>. The first character MUST be the actual Unicode emoji, never an alias or text such as :sparkles:, sparkles, feat:, or emoji:. Start the imperative English message with a capital letter."
 	}
 	hint := ""
 	if input.Hint != "" {
@@ -57,7 +95,7 @@ func buildPrompt(input Input) string {
 func compactCerebrasPrompt(input Input) string {
 	rules := "Use exactly <type>: <message> with type feat, fix, docs, style, refactor, perf, test, build, ci, chore, or revert. Use imperative English and a lowercase message."
 	if input.Format == "gitmoji" {
-		rules = "Use exactly one Gitmoji followed by an imperative English message that starts with a capital letter."
+		rules = "Choose ONLY ONE Gitmoji. Use exactly <Unicode Gitmoji><space><imperative English message>. Start the message with a capital letter. Never use aliases or text such as :sparkles:, sparkles, feat:, or emoji:."
 	}
 	hint := ""
 	if input.Hint != "" {
@@ -115,7 +153,7 @@ func (c Client) generateOpenAI(ctx context.Context, cfg config.Config, input Inp
 		return "", err
 	}
 	if message, truncated := responseMessage(response); message != "" {
-		return normalize(message), nil
+		return normalizeCommitMessage(message, input.Format), nil
 	} else if !isCerebrasReasoning || !truncated {
 		return "", responseError(response)
 	}
@@ -126,7 +164,7 @@ func (c Client) generateOpenAI(ctx context.Context, cfg config.Config, input Inp
 		return "", err
 	}
 	if message, _ := responseMessage(response); message != "" {
-		return normalize(message), nil
+		return normalizeCommitMessage(message, input.Format), nil
 	}
 	return "", responseError(response)
 }
@@ -198,7 +236,7 @@ func responseError(response openAIResponse) error {
 	return errors.New("a API não retornou uma mensagem de commit")
 }
 
-func (c Client) generateGemini(ctx context.Context, cfg config.Config, prompt string) (string, error) {
+func (c Client) generateGemini(ctx context.Context, cfg config.Config, prompt, format string) (string, error) {
 	endpoint := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent", url.PathEscape(cfg.Model))
 	payload := map[string]any{"contents": []any{map[string]any{"parts": []any{map[string]string{"text": prompt}}}}}
 	body, err := json.Marshal(payload)
@@ -240,7 +278,7 @@ func (c Client) generateGemini(ctx context.Context, cfg config.Config, prompt st
 	if len(decoded.Candidates) == 0 || len(decoded.Candidates[0].Content.Parts) == 0 {
 		return "", errors.New("Gemini não retornou uma mensagem de commit")
 	}
-	return normalize(decoded.Candidates[0].Content.Parts[0].Text), nil
+	return normalizeCommitMessage(decoded.Candidates[0].Content.Parts[0].Text, format), nil
 }
 
 func normalize(value string) string {
@@ -250,4 +288,38 @@ func normalize(value string) string {
 		value = line
 	}
 	return strings.TrimSpace(value)
+}
+
+func normalizeCommitMessage(value, format string) string {
+	message := normalize(value)
+	if format != "gitmoji" {
+		return message
+	}
+	return normalizeGitmoji(message)
+}
+
+func normalizeGitmoji(value string) string {
+	lower := strings.ToLower(value)
+	for _, alias := range gitmojiAliases {
+		if !strings.HasPrefix(lower, alias.shortcode) {
+			continue
+		}
+		return formatGitmoji(alias.emoji, value[len(alias.shortcode):])
+	}
+	for _, alias := range gitmojiAliases {
+		if strings.HasPrefix(value, alias.emoji) {
+			return formatGitmoji(alias.emoji, strings.TrimPrefix(value, alias.emoji))
+		}
+	}
+	return value
+}
+
+func formatGitmoji(emoji, message string) string {
+	message = strings.TrimSpace(message)
+	if message == "" {
+		return emoji
+	}
+	runes := []rune(message)
+	runes[0] = unicode.ToUpper(runes[0])
+	return emoji + " " + string(runes)
 }

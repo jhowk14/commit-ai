@@ -16,7 +16,7 @@ import (
 func TestPromptBuildersRespectFormatHintAndCustomTemplate(t *testing.T) {
 	input := Input{Git: gitctx.Context{History: "abc", Files: "main.go", Diff: "+line"}, Format: "gitmoji", Hint: "improve setup"}
 	prompt := buildPrompt(input)
-	if !strings.Contains(prompt, "Gitmoji") || !strings.Contains(prompt, "improve setup") || !strings.Contains(prompt, "main.go") {
+	if !strings.Contains(prompt, "Gitmoji") || !strings.Contains(prompt, "never an alias") || !strings.Contains(prompt, "improve setup") || !strings.Contains(prompt, "main.go") {
 		t.Fatalf("prompt: %s", prompt)
 	}
 	input.UseCustomPrompt, input.CustomPrompt = true, "{FILES}|{DIFF}|{HISTORY}"
@@ -26,6 +26,49 @@ func TestPromptBuildersRespectFormatHintAndCustomTemplate(t *testing.T) {
 	compact := compactCerebrasPrompt(input)
 	if strings.Contains(compact, "abc") || !strings.Contains(compact, "Gitmoji") {
 		t.Fatalf("prompt compacto: %s", compact)
+	}
+}
+
+func TestNormalizeGitmojiUsesUnicodeAndRepairsSpacing(t *testing.T) {
+	testCases := []struct {
+		input string
+		want  string
+	}{
+		{":sparkles: add reconciliation filters", "✨ Add reconciliation filters"},
+		{":BUG: fix the import", "🐛 Fix the import"},
+		{"🚀release faster", "🚀 Release faster"},
+		{"feat: add filters", "feat: add filters"},
+	}
+	for _, testCase := range testCases {
+		if got := normalizeCommitMessage(testCase.input, "gitmoji"); got != testCase.want {
+			t.Fatalf("normalizeGitmoji(%q) = %q, want %q", testCase.input, got, testCase.want)
+		}
+	}
+}
+
+func TestNormalizeGitmojiCoversEveryOfficialGitmojiShortcode(t *testing.T) {
+	officialShortcodes := []string{
+		":art:", ":zap:", ":fire:", ":bug:", ":ambulance:", ":sparkles:", ":memo:", ":rocket:", ":lipstick:", ":tada:",
+		":white_check_mark:", ":lock:", ":closed_lock_with_key:", ":bookmark:", ":rotating_light:", ":construction:", ":green_heart:", ":arrow_down:", ":arrow_up:", ":pushpin:",
+		":construction_worker:", ":chart_with_upwards_trend:", ":recycle:", ":heavy_plus_sign:", ":heavy_minus_sign:", ":wrench:", ":hammer:", ":globe_with_meridians:", ":pencil2:", ":poop:",
+		":rewind:", ":twisted_rightwards_arrows:", ":package:", ":alien:", ":truck:", ":page_facing_up:", ":boom:", ":bento:", ":wheelchair:", ":bulb:",
+		":beers:", ":speech_balloon:", ":card_file_box:", ":loud_sound:", ":mute:", ":busts_in_silhouette:", ":children_crossing:", ":building_construction:", ":iphone:", ":clown_face:",
+		":egg:", ":see_no_evil:", ":camera_flash:", ":alembic:", ":mag:", ":label:", ":seedling:", ":triangular_flag_on_post:", ":goal_net:", ":dizzy:",
+		":wastebasket:", ":passport_control:", ":adhesive_bandage:", ":monocle_face:", ":coffin:", ":test_tube:", ":necktie:", ":stethoscope:", ":bricks:", ":technologist:",
+		":money_with_wings:", ":thread:", ":safety_vest:", ":airplane:", ":t-rex:",
+	}
+	aliases := make(map[string]string, len(gitmojiAliases))
+	for _, alias := range gitmojiAliases {
+		aliases[alias.shortcode] = alias.emoji
+	}
+	for _, shortcode := range officialShortcodes {
+		emoji, found := aliases[shortcode]
+		if !found {
+			t.Fatalf("shortcode oficial ausente: %s", shortcode)
+		}
+		if got := normalizeGitmoji(shortcode + " update behavior"); got != emoji+" Update behavior" {
+			t.Fatalf("shortcode %s: got %q", shortcode, got)
+		}
 	}
 }
 

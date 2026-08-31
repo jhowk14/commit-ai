@@ -2,7 +2,7 @@
 # commit-ai installer — Linux and macOS
 set -euo pipefail
 
-VERSION="${COMMIT_AI_VERSION:-2.0.6}"
+VERSION="${COMMIT_AI_VERSION:-2.0.7}"
 REPOSITORY="jhowk14/commit-ai"
 INSTALL_DIR="${COMMIT_AI_INSTALL_DIR:-/usr/local/bin}"
 

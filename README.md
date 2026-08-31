@@ -18,14 +18,14 @@
 ### Linux e macOS
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jhowk14/commit-ai/v2.0.6/any-linux/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/jhowk14/commit-ai/v2.0.7/any-linux/install.sh | bash
 commit-ai --setup
 ```
 
 Também é possível compilar a partir do código-fonte:
 
 ```bash
-go install github.com/jhowk14/commit-ai/v2/cmd/commit-ai@v2.0.6
+go install github.com/jhowk14/commit-ai/v2/cmd/commit-ai@v2.0.7
 ```
 
 ### Windows
@@ -33,7 +33,7 @@ go install github.com/jhowk14/commit-ai/v2/cmd/commit-ai@v2.0.6
 No PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/jhowk14/commit-ai/v2.0.6/windows/install.ps1 | iex
+irm https://raw.githubusercontent.com/jhowk14/commit-ai/v2.0.7/windows/install.ps1 | iex
 commit-ai --setup
 ```
 
@@ -64,6 +64,7 @@ commit-ai
 | `-s`, `-S`, `--sync` | guarda alterações, sincroniza e as prepara novamente |
 | `-C`, `--custom` | usa `~/.commit-ai-prompt.txt` |
 | `-p`, `--preview` | apenas mostra a mensagem |
+| `--json` | retorna a prévia em JSON; requer `--preview` |
 | `-y`, `--yes` | cria o commit sem interação |
 | `-u`, `--undo` | desfaz o último commit, mantendo as alterações preparadas |
 | `-B`, `--base-url <url>` | substitui a base URL OpenAI-compatível nesta execução |
