@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 
 <head>
   <meta charset="UTF-8">
@@ -9,23 +9,27 @@
   <title>commit-ai — AI-Powered Git Commit Messages 🚀</title>
   <meta name="title" content="commit-ai — AI-Powered Git Commit Messages 🚀">
   <meta name="description"
-    content="Mensagens de commit com IA em um binário nativo para Linux, macOS e Windows. Gemini, OpenAI compatível, Cerebras, Gitmoji e Conventional Commits.">
+    content="Generate clear Git commit messages from staged changes with Gemini, OpenAI, Cerebras, OpenRouter, Groq, DeepSeek, Ollama, and LM Studio. A fast native CLI for Linux, macOS, and Windows.">
   <meta name="keywords"
-    content="git, commit, ia, gemini, openai, cerebras, gitmoji, conventional commits, linux, macos, windows, go, developer tools">
+    content="AI commit message generator, Git commit messages, commit CLI, Gemini, OpenAI, Cerebras, OpenRouter, Groq, DeepSeek, Ollama, LM Studio, Gitmoji, Conventional Commits, developer tools">
   <meta name="author" content="jhowk14">
   <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://jhowk14.github.io/commit-ai/">
 
   <!-- Open Graph -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://jhowk14.github.io/commit-ai/">
   <meta property="og:title" content="commit-ai — AI-Powered Git Commit Messages 🚀">
   <meta property="og:description"
-    content="Generate perfect Git commit messages in seconds! AI-powered by Google Gemini & OpenAI with Auto-Sync support.">
+    content="Turn staged Git changes into clear commit messages with your preferred AI provider on Linux, macOS, or Windows.">
   <meta property="og:image" content="https://jhowk14.github.io/commit-ai/og-image.png">
+  <meta property="og:site_name" content="commit-ai">
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="commit-ai — AI-Powered Git Commit Messages 🚀">
+  <meta name="twitter:description" content="A native, cross-platform CLI for AI-powered Git commit messages.">
+  <meta name="twitter:image" content="https://jhowk14.github.io/commit-ai/og-image.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml"
@@ -46,10 +50,13 @@
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "commit-ai",
-    "description": "Cross-platform AI-powered Git commit message generator.",
+    "description": "A native cross-platform CLI that generates Git commit messages from staged changes using Gemini or OpenAI-compatible providers.",
     "url": "https://jhowk14.github.io/commit-ai/",
+    "downloadUrl": "https://github.com/jhowk14/commit-ai/releases/latest",
+    "codeRepository": "https://github.com/jhowk14/commit-ai",
     "applicationCategory": "DeveloperApplication",
     "operatingSystem": ["Linux", "macOS", "Windows"],
+    "isAccessibleForFree": true,
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
     "softwareVersion": "2.0.1"
   }
@@ -60,7 +67,7 @@
   <!-- Hero Section -->
   <header class="hero">
     <nav class="nav">
-      <a href="https://github.com/jhowk14/commit-ai" class="nav-link" target="_blank">
+      <a href="https://github.com/jhowk14/commit-ai" class="nav-link" target="_blank" rel="noopener noreferrer" aria-label="View commit-ai on GitHub">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
           <path
             d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
@@ -70,17 +77,17 @@
 
     <div class="hero-content">
       <h1 class="logo">commit<span class="logo-emoji">🤖</span>ai</h1>
-      <p class="tagline">Commits com IA em um binário nativo para Linux, macOS e Windows</p>
+      <p class="tagline">AI-powered Git commit messages from your staged changes — fast, native, and cross-platform.</p>
 
       <div class="cta-buttons">
-        <a href="https://github.com/jhowk14/commit-ai" class="btn btn-primary" target="_blank">
+        <a href="https://github.com/jhowk14/commit-ai/releases/latest" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
             <path
               d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
           </svg>
-          Ver release 2.0
+          Get commit-ai v2.0.1
         </a>
-        <a href="#install" class="btn btn-secondary">Instalar</a>
+        <a href="#install" class="btn btn-secondary">Get Started</a>
       </div>
     </div>
 
@@ -97,44 +104,44 @@
   <main class="main">
     <!-- Features Section -->
     <section class="features">
-      <h2 class="section-title">Recursos</h2>
+      <h2 class="section-title">Built for better Git commits</h2>
       <div class="features-grid">
         <div class="feature-card">
           <span class="feature-icon">🤖</span>
-          <h3>Vários provedores</h3>
-          <p>Gemini e qualquer API compatível com OpenAI</p>
+          <h3>Bring your AI provider</h3>
+          <p>Gemini plus OpenAI, Cerebras, OpenRouter, Groq, DeepSeek, Ollama, and LM Studio.</p>
         </div>
         <div class="feature-card">
           <span class="feature-icon">🔄</span>
-          <h3>Sync remoto</h3>
-          <p>Guarda, sincroniza e restaura alterações antes do commit</p>
+          <h3>Remote sync</h3>
+          <p>Stash, pull, restore, and stage changes before generating your commit.</p>
         </div>
         <div class="feature-card">
           <span class="feature-icon">🔀</span>
-          <h3>Branch e push</h3>
-          <p>Cria ou troca a branch e envia depois do commit</p>
+          <h3>Branch and push</h3>
+          <p>Create or switch branches, then push after the commit is confirmed.</p>
         </div>
         <div class="feature-card">
           <span class="feature-icon">🎨</span>
           <h3>Gitmoji</h3>
-          <p>Mensagens com um Gitmoji adequado</p>
+          <p>Generate concise commits with the right Gitmoji prefix.</p>
         </div>
         <div class="feature-card">
           <span class="feature-icon">📦</span>
           <h3>Conventional Commits</h3>
-          <p>Formato padronizado e editável antes de confirmar</p>
+          <p>Use a standard format and edit the message before you commit.</p>
         </div>
         <div class="feature-card">
           <span class="feature-icon">💬</span>
-          <h3>Binário nativo</h3>
-          <p>Sem Bash, PowerShell, curl ou jq em tempo de execução</p>
+          <h3>Native binary</h3>
+          <p>One fast executable for Linux, macOS, and Windows — no shell runtime required.</p>
         </div>
       </div>
     </section>
 
     <!-- Demo Section -->
     <section class="demo">
-      <h2 class="section-title">Como funciona</h2>
+      <h2 class="section-title">How it works</h2>
       <div class="demo-container">
         <div class="terminal">
           <div class="terminal-header">
@@ -148,19 +155,19 @@
               <span class="prompt">$</span> commit-ai -c -s
             </div>
             <div class="terminal-line output">
-              <span class="generated">🔄 Sincronizando alterações com a branch remota...</span>
+              <span class="generated">🔄 Syncing with the remote branch...</span>
             </div>
             <div class="terminal-line output">
               <span class="generated">feat: add document parser route</span>
             </div>
             <div class="terminal-line output">
-              <span class="generated">✅ Commit criado: feat: add document parser route</span>
+              <span class="generated">✅ Commit created: feat: add document parser route</span>
             </div>
             <div class="terminal-line">
               <span class="prompt">$</span> commit-ai -s -c -b new-feature
             </div>
             <div class="terminal-line output">
-              <span class="generated">🌱 Abrindo branch "new-feature"...</span>
+              <span class="generated">🌱 Switching to branch "new-feature"...</span>
             </div>
           </div>
         </div>
@@ -169,10 +176,10 @@
 
     <!-- Install Section -->
     <section class="install" id="install">
-      <h2 class="section-title">Instalação</h2>
+      <h2 class="section-title">Install in minutes</h2>
 
       <div class="install-tabs">
-        <button class="tab-btn active" data-tab="linux">🐧 Linux e macOS</button>
+        <button class="tab-btn active" data-tab="linux">🐧 Linux and macOS</button>
         <button class="tab-btn" data-tab="aur">🔷 Arch (AUR)</button>
         <button class="tab-btn windows" data-tab="windows">🪟 Windows</button>
       </div>
@@ -196,7 +203,7 @@
               </div>
             </div>
           </div>
-          <p class="install-note">Baixa o binário nativo correto para a arquitetura e mantém sua configuração existente.</p>
+          <p class="install-note">Downloads the right native binary for your architecture and keeps your existing configuration.</p>
         </div>
 
         <div class="tab-content" id="aur">
@@ -213,14 +220,14 @@
                 <span class="prompt">$</span> paru -Syu --rebuild commit-ai
               </div>
               <div class="terminal-line comment">
-                <span class="comment-text"># Configure o provedor de IA</span>
+                <span class="comment-text"># Configure your AI provider</span>
               </div>
               <div class="terminal-line">
                 <span class="prompt">$</span> commit-ai --setup
               </div>
             </div>
           </div>
-          <p class="install-note">O pacote AUR compila o binário Go localmente.</p>
+          <p class="install-note">The AUR package builds the Go binary locally.</p>
         </div>
 
         <div class="tab-content" id="windows">
@@ -241,14 +248,14 @@
               </div>
             </div>
           </div>
-          <p class="install-note">O instalador baixa o .exe nativo e adiciona a pasta ao PATH do usuário.</p>
+          <p class="install-note">The installer downloads the native .exe and adds it to your user PATH.</p>
         </div>
       </div>
 
       <div class="api-setup">
-        <h3>⚙️ Configuração</h3>
+        <h3>⚙️ Configuration</h3>
         <p class="install-note" style="margin-bottom: 16px;">
-          Execute <code>commit-ai --setup</code> a qualquer momento para alterar suas preferências.
+          Run <code>commit-ai --setup</code> whenever you want to change your preferences.
         </p>
 
         <div class="terminal">
@@ -288,55 +295,55 @@
 
     <!-- Options Section -->
     <section class="options">
-      <h2 class="section-title">Opções</h2>
+      <h2 class="section-title">CLI options</h2>
       <div class="options-grid">
         <div class="option-card">
           <code class="option-flag">-s, -S, --sync</code>
-          <p>Sincroniza antes do commit (stash, pull, pop e add)</p>
+          <p>Sync before committing: stash, pull, restore, and stage.</p>
         </div>
         <div class="option-card">
           <code class="option-flag">-b, --branch</code>
-          <p>Cria ou troca a branch e envia após o commit</p>
+          <p>Create or switch a branch and push after the commit.</p>
         </div>
         <div class="option-card">
           <code class="option-flag">-c, --conv</code>
-          <p>Usa o formato Conventional Commits</p>
+          <p>Use the Conventional Commits format.</p>
         </div>
         <div class="option-card">
           <code class="option-flag">-e, --emoji</code>
-          <p>Usa o formato Gitmoji</p>
+          <p>Use the Gitmoji format.</p>
         </div>
         <div class="option-card">
           <code class="option-flag">-m, --message</code>
-          <p>Fornece contexto adicional à IA</p>
+          <p>Give the AI extra context for a more accurate message.</p>
         </div>
         <div class="option-card">
           <code class="option-flag">-p, --preview</code>
-          <p>Mostra a mensagem sem criar commit</p>
+          <p>Preview the message without creating a commit.</p>
         </div>
         <div class="option-card">
           <code class="option-flag">-y, --yes</code>
-          <p>Cria o commit sem interação</p>
+          <p>Create the commit without confirmation.</p>
         </div>
         <div class="option-card">
           <code class="option-flag">--setup</code>
-          <p>Abre a configuração interativa</p>
+          <p>Open the interactive configuration flow.</p>
         </div>
         <div class="option-card">
           <code class="option-flag">--config</code>
-          <p>Mostra a configuração sem revelar chaves</p>
+          <p>Show configuration without exposing API keys.</p>
         </div>
         <div class="option-card">
           <code class="option-flag">-u, --undo</code>
-          <p>Desfaz o último commit e mantém alterações preparadas</p>
+          <p>Undo the latest commit while keeping changes staged.</p>
         </div>
         <div class="option-card">
           <code class="option-flag">-C, --custom</code>
-          <p>Usa o arquivo de prompt customizado</p>
+          <p>Use your custom prompt file.</p>
         </div>
         <div class="option-card">
           <code class="option-flag">--edit-prompt</code>
-          <p>Cria ou edita o prompt customizado</p>
+          <p>Create or edit your custom AI prompt.</p>
         </div>
       </div>
     </section>
@@ -344,8 +351,8 @@
 
   <!-- Footer -->
   <footer class="footer">
-    <p>Made with ❤️ by <a href="https://github.com/jhowk14" target="_blank">jhowk14</a></p>
-    <p class="footer-note">MIT License © 2026 · commit-ai 2.0</p>
+    <p>Made with ❤️ by <a href="https://github.com/jhowk14" target="_blank" rel="noopener noreferrer">jhowk14</a></p>
+    <p class="footer-note">MIT License © 2026 · commit-ai v2.0.1</p>
   </footer>
 
   <script>

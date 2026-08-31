@@ -24,9 +24,14 @@ func TestWebsiteUsesCurrentReleaseAndSupportedPlatforms(t *testing.T) {
 	}
 	content := string(page)
 	for _, expected := range []string{
+		`<html lang="en">`,
+		`<link rel="canonical" href="https://jhowk14.github.io/commit-ai/">`,
+		`"@type": "SoftwareApplication"`,
+		`"codeRepository": "https://github.com/jhowk14/commit-ai"`,
 		`"softwareVersion": "` + match[1] + `"`,
-		"Linux e macOS",
+		"Linux and macOS",
 		"Windows",
+		"AI-powered Git commit messages",
 		"v" + match[1] + "/any-linux/install.sh",
 		"v" + match[1] + "/windows/install.ps1",
 	} {
