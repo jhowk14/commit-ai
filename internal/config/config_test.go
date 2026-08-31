@@ -13,7 +13,8 @@ func TestSaveAndLoadLegacyCompatibleConfig(t *testing.T) {
 	cfg := Default()
 	cfg.Format = "gitmoji"
 	cfg.AutoConfirm = true
-	cfg.AskPush = true
+	cfg.PushMode = PushAlways
+	cfg.Language = "en"
 	cfg.UseCustomPrompt = true
 	cfg.Provider = "openai"
 	cfg.Model = "gpt-oss-120b"
@@ -45,7 +46,7 @@ func TestLoadAcceptsLegacyAliasesAndIgnoresInvalidValues(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	content := "format=gitmoji\nauto_confirm=true\nbase_url=http://localhost:11434/v1\nprovider=openai\nmodel=test\nunknown=value\n"
+	content := "format=gitmoji\nauto_confirm=true\nask_push=true\npush_mode=always\nlanguage=en\nbase_url=http://localhost:11434/v1\nprovider=openai\nmodel=test\nunknown=value\n"
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +54,7 @@ func TestLoadAcceptsLegacyAliasesAndIgnoresInvalidValues(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Format != "gitmoji" || !cfg.AutoConfirm || cfg.OpenAIBaseURL != "http://localhost:11434/v1" || cfg.Model != "test" {
+	if cfg.Format != "gitmoji" || !cfg.AutoConfirm || cfg.PushMode != PushAlways || cfg.Language != "en" || cfg.OpenAIBaseURL != "http://localhost:11434/v1" || cfg.Model != "test" {
 		t.Fatalf("configuração: %#v", cfg)
 	}
 }
@@ -76,18 +77,21 @@ func TestValidateProviderAndShowDoNotLeakFullKeys(t *testing.T) {
 	if bytes.Contains(out.Bytes(), []byte("secret-value")) {
 		t.Fatal("Show expôs a chave inteira")
 	}
+	if bytes.Contains(out.Bytes(), []byte("MISSING")) || !bytes.Contains(out.Bytes(), []byte("envio ao remoto:")) {
+		t.Fatalf("Show formatou a configuração incorretamente: %s", out.String())
+	}
 }
 
 func TestSetupPersistsInteractiveValues(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	input := "gitmoji\ns\nn\ns\nopenai\nhttps://api.cerebras.ai/v1\ngpt-oss-120b\ntest-key\n"
+	input := "en\ngitmoji\ns\n1\ns\nopenai\nhttps://api.cerebras.ai/v1\ngpt-oss-120b\ntest-key\n"
 	var out bytes.Buffer
 	cfg, err := Setup(Default(), bytes.NewBufferString(input), &out)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Format != "gitmoji" || !cfg.AutoConfirm || cfg.AskPush || !cfg.UseCustomPrompt || cfg.Provider != "openai" || cfg.Model != "gpt-oss-120b" {
+	if cfg.Language != "en" || cfg.Format != "gitmoji" || !cfg.AutoConfirm || cfg.PushMode != PushAlways || !cfg.UseCustomPrompt || cfg.Provider != "openai" || cfg.Model != "gpt-oss-120b" {
 		t.Fatalf("setup: %#v", cfg)
 	}
 	loaded, err := Load()
@@ -96,6 +100,25 @@ func TestSetupPersistsInteractiveValues(t *testing.T) {
 	}
 	if loaded != cfg {
 		t.Fatalf("configuração persistida: %#v != %#v", loaded, cfg)
+	}
+}
+
+func TestLegacyAskPushMigratesToAskMode(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	path, err := Path()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("ask_push=true\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.PushMode != PushAsk {
+		t.Fatalf("modo migrado: %q", cfg.PushMode)
 	}
 }
 

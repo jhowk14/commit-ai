@@ -100,6 +100,49 @@ func TestPreviewDoesNotCommit(t *testing.T) {
 	}
 }
 
+func TestRunPushesAutomaticallyWhenConfigured(t *testing.T) {
+	home, repoDir, remote := t.TempDir(), t.TempDir(), t.TempDir()
+	t.Setenv("HOME", home)
+	runGit(t, repoDir, "init")
+	runGit(t, repoDir, "config", "user.name", "Commit AI Test")
+	runGit(t, repoDir, "config", "user.email", "commit-ai@example.test")
+	if err := os.WriteFile(filepath.Join(repoDir, "file.txt"), []byte("before\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, repoDir, "add", "file.txt")
+	runGit(t, repoDir, "commit", "-m", "chore: initial")
+	runGit(t, remote, "init", "--bare")
+	runGit(t, repoDir, "remote", "add", "origin", remote)
+	runGit(t, repoDir, "push", "-u", "origin", "HEAD")
+	if err := os.WriteFile(filepath.Join(repoDir, "file.txt"), []byte("before\nafter\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, repoDir, "add", "file.txt")
+
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		_, _ = writer.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"fix: push automatically"}}]}`))
+	}))
+	defer server.Close()
+	cfg := config.Default()
+	cfg.Provider, cfg.Model, cfg.OpenAIBaseURL, cfg.OpenAIAPIKey, cfg.PushMode = "openai", "model", server.URL, "test", config.PushAlways
+	if err := config.Save(cfg); err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	application := New("test", strings.NewReader(""), &output, &output)
+	application.workDir, application.client = repoDir, ai.Client{HTTPClient: server.Client()}
+	if err := application.Run(context.Background(), []string{"--yes"}); err != nil {
+		t.Fatal(err)
+	}
+	branch := strings.TrimSpace(runGit(t, repoDir, "branch", "--show-current"))
+	if got := strings.TrimSpace(runGit(t, repoDir, "ls-remote", "--heads", "origin", branch)); got == "" {
+		t.Fatal("commit não foi enviado automaticamente")
+	}
+	if !strings.Contains(output.String(), "Alterações enviadas") {
+		t.Fatalf("saída de push: %s", output.String())
+	}
+}
+
 func TestRunSyncReportsEveryStep(t *testing.T) {
 	home, repoDir, remote := t.TempDir(), t.TempDir(), t.TempDir()
 	t.Setenv("HOME", home)
@@ -202,12 +245,12 @@ func TestHelpVersionConfigAndCustomPromptErrors(t *testing.T) {
 func TestMessageEditorAcceptsReplacementAndDefault(t *testing.T) {
 	var output bytes.Buffer
 	application := New("test", strings.NewReader("fix: custom\n"), &output, &output)
-	message, err := application.editCommitMessage("fix: generated")
+	message, err := application.editCommitMessage(config.Default().UILanguage(), "fix: generated")
 	if err != nil || message != "fix: custom" {
 		t.Fatalf("substituição: %q %v", message, err)
 	}
 	application.in = strings.NewReader("\n")
-	message, err = application.editCommitMessage("fix: generated")
+	message, err = application.editCommitMessage(config.Default().UILanguage(), "fix: generated")
 	if err != nil || message != "fix: generated" {
 		t.Fatalf("sugestão padrão: %q %v", message, err)
 	}

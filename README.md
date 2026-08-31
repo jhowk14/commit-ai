@@ -8,6 +8,8 @@
 - Gemini e qualquer API compatível com OpenAI: OpenAI, OpenRouter, Groq, DeepSeek, Ollama, LM Studio e Cerebras;
 - suporte específico ao `gpt-oss-120b` do Cerebras, com orçamento de raciocínio seguro;
 - prévia, confirmação/edição antes de criar o commit, desfazer, branch, push e sincronização;
+- interface em Português ou English, configurável pelo `--setup`;
+- envio ao remoto configurável: automático, perguntar antes ou não enviar;
 - prompt customizado e contexto adicional;
 - mesmo arquivo de configuração da versão 1.x: `~/.commit-ai.conf`.
 
@@ -16,14 +18,14 @@
 ### Linux e macOS
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jhowk14/commit-ai/v2.0.2/any-linux/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/jhowk14/commit-ai/v2.0.3/any-linux/install.sh | bash
 commit-ai --setup
 ```
 
 Também é possível compilar a partir do código-fonte:
 
 ```bash
-go install github.com/jhowk14/commit-ai/v2/cmd/commit-ai@v2.0.2
+go install github.com/jhowk14/commit-ai/v2/cmd/commit-ai@v2.0.3
 ```
 
 ### Windows
@@ -31,7 +33,7 @@ go install github.com/jhowk14/commit-ai/v2/cmd/commit-ai@v2.0.2
 No PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/jhowk14/commit-ai/v2.0.2/windows/install.ps1 | iex
+irm https://raw.githubusercontent.com/jhowk14/commit-ai/v2.0.3/windows/install.ps1 | iex
 commit-ai --setup
 ```
 
@@ -85,7 +87,8 @@ A versão 2.0 lê o mesmo arquivo da versão anterior, então uma instalação e
 ```ini
 format=conventional
 auto_confirm=false
-ask_push=true
+language=pt-BR
+push_mode=ask
 use_custom_prompt=false
 provider=openai
 model=gpt-oss-120b
@@ -94,6 +97,8 @@ openai_api_key=your_key_here
 ```
 
 As variáveis de ambiente têm prioridade sobre chaves salvas no arquivo: `GEMINI_API_KEY`, `OPENAI_API_KEY`, `CEREBRAS_API_KEY`, `OPENROUTER_API_KEY`, `GROQ_API_KEY` e `DEEPSEEK_API_KEY`. Para criar ou alterar a configuração, execute `commit-ai --setup`.
+
+No setup, escolha o idioma da interface (`pt-BR` ou `en`) e o comportamento após o commit: enviar automaticamente, perguntar antes de enviar ou nunca enviar. Configurações antigas com `ask_push=true` continuam funcionando e passam a significar “perguntar antes de enviar”.
 
 O prompt customizado pode usar `{HISTORY}`, `{FILES}` e `{DIFF}`.
 

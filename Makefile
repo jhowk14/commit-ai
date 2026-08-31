@@ -1,4 +1,4 @@
-VERSION ?= 2.0.2
+VERSION ?= 2.0.3
 DIST := dist
 
 .PHONY: test test-race vet build clean

@@ -40,3 +40,26 @@ func TestWebsiteUsesCurrentReleaseAndSupportedPlatforms(t *testing.T) {
 		}
 	}
 }
+
+func TestInstallersDefaultToCurrentRelease(t *testing.T) {
+	mainSource, err := os.ReadFile(filepath.Join("..", "cmd", "commit-ai", "main.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	match := regexp.MustCompile(`var version = "([^"]+)"`).FindStringSubmatch(string(mainSource))
+	if len(match) != 2 {
+		t.Fatal("versão do binário não encontrada")
+	}
+	for _, path := range []string{
+		filepath.Join("..", "any-linux", "install.sh"),
+		filepath.Join("..", "windows", "install.ps1"),
+	} {
+		contents, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(contents), match[1]) {
+			t.Fatalf("%s não usa a versão padrão %s", path, match[1])
+		}
+	}
+}

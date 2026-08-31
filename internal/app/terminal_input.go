@@ -9,10 +9,9 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/jhowk14/commit-ai/v2/internal/i18n"
 	"golang.org/x/term"
 )
-
-const commitMessagePrompt = "📝 Commit message: "
 
 type keyKind uint8
 
@@ -45,7 +44,7 @@ func terminalFiles(in io.Reader, out io.Writer) (*os.File, *os.File, bool) {
 
 // editPreFilledLine mirrors the old readline workflow: the generated message
 // is already in the input line, so Enter accepts it and typing edits it.
-func editPreFilledLine(input, output *os.File, suggested string) (string, error) {
+func editPreFilledLine(input, output *os.File, language i18n.Language, suggested string) (string, error) {
 	state, err := term.MakeRaw(int(input.Fd()))
 	if err != nil {
 		return "", err
@@ -54,9 +53,11 @@ func editPreFilledLine(input, output *os.File, suggested string) (string, error)
 
 	value, cursor := []rune(suggested), len([]rune(suggested))
 	reader := bufio.NewReader(input)
+	prompt := i18n.T(language, "editor_prompt")
+	lastRender := renderedLine{}
 	fmt.Fprintln(output)
 	for {
-		renderEditableLine(output, value, cursor)
+		lastRender = renderEditableLine(output, value, cursor, prompt, lastRender)
 		key, err := readTerminalKey(reader)
 		if err != nil {
 			return "", err
@@ -70,7 +71,7 @@ func editPreFilledLine(input, output *os.File, suggested string) (string, error)
 			return string(value), nil
 		case keyCancel:
 			fmt.Fprint(output, "\r\n")
-			return "", errors.New("commit cancelado")
+			return "", errors.New(i18n.T(language, "commit_canceled"))
 		case keyLeft:
 			if cursor > 0 {
 				cursor--
@@ -161,10 +162,58 @@ func readEscapeSequence(reader *bufio.Reader) (terminalKey, error) {
 	}
 }
 
-func renderEditableLine(output io.Writer, value []rune, cursor int) {
-	fmt.Fprintf(output, "\r\033[2K%s%s", commitMessagePrompt, string(value))
-	if remaining := displayWidth(value[cursor:]); remaining > 0 {
-		fmt.Fprintf(output, "\033[%dD", remaining)
+type renderedLine struct {
+	rows      int
+	cursorRow int
+}
+
+// renderEditableLine clears every visual row used by the previous render.
+// Clearing only the current row leaves duplicated text when a long generated
+// message wraps in the terminal, which made editing appear to append text.
+func renderEditableLine(output *os.File, value []rune, cursor int, prompt string, previous renderedLine) renderedLine {
+	clearRenderedLine(output, previous)
+	columns, _, err := term.GetSize(int(output.Fd()))
+	if err != nil || columns < 20 {
+		columns = 80
+	}
+	promptWidth := displayWidth([]rune(prompt))
+	valueWidth := displayWidth(value)
+	cursorWidth := promptWidth + displayWidth(value[:cursor])
+	rows := max(1, (promptWidth+valueWidth+columns-1)/columns)
+	cursorRow := min(rows-1, cursorWidth/columns)
+	cursorColumn := cursorWidth % columns
+
+	fmt.Fprintf(output, "%s%s", prompt, string(value))
+	endRow := rows - 1
+	fmt.Fprint(output, "\r")
+	if endRow > 0 {
+		fmt.Fprintf(output, "\033[%dA", endRow)
+	}
+	if cursorRow > 0 {
+		fmt.Fprintf(output, "\033[%dB", cursorRow)
+	}
+	if cursorColumn > 0 {
+		fmt.Fprintf(output, "\033[%dC", cursorColumn)
+	}
+	return renderedLine{rows: rows, cursorRow: cursorRow}
+}
+
+func clearRenderedLine(output io.Writer, previous renderedLine) {
+	if previous.rows == 0 {
+		return
+	}
+	fmt.Fprint(output, "\r")
+	if previous.cursorRow > 0 {
+		fmt.Fprintf(output, "\033[%dA", previous.cursorRow)
+	}
+	for row := 0; row < previous.rows; row++ {
+		fmt.Fprint(output, "\033[2K")
+		if row+1 < previous.rows {
+			fmt.Fprint(output, "\033[1B\r")
+		}
+	}
+	if previous.rows > 1 {
+		fmt.Fprintf(output, "\033[%dA\r", previous.rows-1)
 	}
 }
 

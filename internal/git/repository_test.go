@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/jhowk14/commit-ai/v2/internal/i18n"
 )
 
 func testRepository(t *testing.T) Repository {
@@ -122,7 +124,7 @@ func TestSyncPreservesAndStagesLocalChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 	progress := make([]string, 0)
-	if err := repo.Sync(context.Background(), func(message string) { progress = append(progress, message) }); err != nil {
+	if err := repo.Sync(context.Background(), i18n.Portuguese, func(message string) { progress = append(progress, message) }); err != nil {
 		t.Fatal(err)
 	}
 	if len(progress) < 3 || !strings.Contains(progress[0], "Adicionando") {
@@ -134,6 +136,23 @@ func TestSyncPreservesAndStagesLocalChanges(t *testing.T) {
 	}
 	if got := strings.TrimSpace(runGit(t, repo.Dir, "diff", "--cached", "--", "README.md")); !strings.Contains(got, "+local change") {
 		t.Fatalf("alteração perdida: %s", got)
+	}
+}
+
+func TestSyncRestoresStashWhenPullFails(t *testing.T) {
+	repo := testRepository(t)
+	if err := os.WriteFile(filepath.Join(repo.Dir, "README.md"), []byte("base\nlocal change\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, repo.Dir, "remote", "add", "origin", "https://127.0.0.1:1/commit-ai-test.git")
+	if err := repo.Sync(context.Background(), i18n.English, nil); err == nil {
+		t.Fatal("sync com remoto indisponível deveria falhar")
+	}
+	if got := strings.TrimSpace(runGit(t, repo.Dir, "stash", "list")); got != "" {
+		t.Fatalf("stash não foi restaurado: %s", got)
+	}
+	if got := strings.TrimSpace(runGit(t, repo.Dir, "diff", "--cached", "--", "README.md")); !strings.Contains(got, "+local change") {
+		t.Fatalf("alteração não foi restaurada ao staging: %s", got)
 	}
 }
 

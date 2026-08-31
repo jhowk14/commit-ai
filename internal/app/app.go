@@ -15,6 +15,7 @@ import (
 	"github.com/jhowk14/commit-ai/v2/internal/ai"
 	"github.com/jhowk14/commit-ai/v2/internal/config"
 	gitrepo "github.com/jhowk14/commit-ai/v2/internal/git"
+	"github.com/jhowk14/commit-ai/v2/internal/i18n"
 )
 
 type App struct {
@@ -66,6 +67,7 @@ func (a *App) Run(ctx context.Context, args []string) error {
 	if opts.editPrompt {
 		return a.editPrompt()
 	}
+	language := cfg.UILanguage()
 
 	if opts.baseURL != "" {
 		cfg.OpenAIBaseURL = opts.baseURL
@@ -90,18 +92,18 @@ func (a *App) Run(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(a.out, "✅ Último commit desfeito. Alterações permanecem preparadas.\nMensagem anterior: %s\n", message)
+		fmt.Fprintf(a.out, i18n.T(language, "undo"), message)
 		return nil
 	}
 	if opts.branch != "" {
-		fmt.Fprintf(a.out, "🌱 Abrindo branch %q...\n", opts.branch)
+		fmt.Fprintf(a.out, i18n.T(language, "branch"), opts.branch)
 		if err := repo.CreateOrSwitchBranch(ctx, opts.branch); err != nil {
 			return err
 		}
 	}
 	if opts.sync {
-		fmt.Fprintln(a.out, "🔄 Auto-sync ativado. Sincronizando com a branch remota...")
-		if err := repo.Sync(ctx, func(message string) { fmt.Fprintln(a.out, message) }); err != nil {
+		fmt.Fprintln(a.out, i18n.T(language, "auto_sync"))
+		if err := repo.Sync(ctx, language, func(message string) { fmt.Fprintln(a.out, message) }); err != nil {
 			return err
 		}
 	}
@@ -110,7 +112,7 @@ func (a *App) Run(ctx context.Context, args []string) error {
 		return err
 	}
 	if !hasStaged {
-		return errors.New("nenhuma alteração preparada; use git add <arquivo> ou commit-ai --sync")
+		return errors.New(i18n.T(language, "no_staged"))
 	}
 	gitContext, err := repo.Context(ctx)
 	if err != nil {
@@ -125,15 +127,15 @@ func (a *App) Run(ctx context.Context, args []string) error {
 		return err
 	}
 	if message == "" {
-		return errors.New("a IA retornou uma mensagem de commit vazia")
+		return errors.New(i18n.T(language, "empty_message"))
 	}
 
 	if opts.preview {
-		fmt.Fprintf(a.out, "\nPrévia da mensagem:\n\n  %s\n", message)
+		fmt.Fprintf(a.out, i18n.T(language, "preview"), message)
 		return nil
 	}
 	if !opts.yes && !cfg.AutoConfirm {
-		message, err = a.editCommitMessage(message)
+		message, err = a.editCommitMessage(language, message)
 		if err != nil {
 			return err
 		}
@@ -141,17 +143,22 @@ func (a *App) Run(ctx context.Context, args []string) error {
 	if err := repo.Commit(ctx, message); err != nil {
 		return err
 	}
-	fmt.Fprintf(a.out, "✅ Commit criado: %s\n", message)
+	fmt.Fprintf(a.out, i18n.T(language, "committed"), message)
 	if opts.branch != "" {
 		if err := repo.Push(ctx, opts.branch); err != nil {
 			return err
 		}
-		fmt.Fprintf(a.out, "🚀 Enviado para origin/%s\n", opts.branch)
-	} else if cfg.AskPush && a.confirm("Enviar para o repositório remoto? (s/N)") {
+		fmt.Fprintf(a.out, i18n.T(language, "pushed_branch"), opts.branch)
+	} else if cfg.PushMode == config.PushAlways {
 		if err := repo.Push(ctx, ""); err != nil {
 			return err
 		}
-		fmt.Fprintln(a.out, "🚀 Alterações enviadas.")
+		fmt.Fprintln(a.out, i18n.T(language, "pushed"))
+	} else if cfg.PushMode == config.PushAsk && a.confirm(i18n.T(language, "push_prompt")) {
+		if err := repo.Push(ctx, ""); err != nil {
+			return err
+		}
+		fmt.Fprintln(a.out, i18n.T(language, "pushed"))
 	}
 	return nil
 }
@@ -244,11 +251,11 @@ func (a *App) editPrompt() error {
 	return command.Run()
 }
 
-func (a *App) editCommitMessage(message string) (string, error) {
+func (a *App) editCommitMessage(language i18n.Language, message string) (string, error) {
 	if input, output, ok := terminalFiles(a.in, a.out); ok {
-		return editPreFilledLine(input, output, message)
+		return editPreFilledLine(input, output, language, message)
 	}
-	fmt.Fprintf(a.out, "\n📝 Mensagem gerada (Enter mantém a sugestão):\n  %s\n\n> ", message)
+	fmt.Fprintf(a.out, i18n.T(language, "editor_fallback"), message)
 	value, err := bufio.NewReader(a.in).ReadString('\n')
 	if err != nil && !errors.Is(err, io.EOF) {
 		return "", err

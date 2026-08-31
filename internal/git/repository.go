@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+
+	"github.com/jhowk14/commit-ai/v2/internal/i18n"
 )
 
 const maxDiffBytes = 14000
@@ -95,13 +97,13 @@ func (r Repository) CreateOrSwitchBranch(ctx context.Context, branch string) err
 	return r.commandError("criar ou trocar a branch", err)
 }
 
-func (r Repository) Sync(ctx context.Context, progress Progress) error {
+func (r Repository) Sync(ctx context.Context, language i18n.Language, progress Progress) (resultErr error) {
 	report := func(message string) {
 		if progress != nil {
 			progress(message)
 		}
 	}
-	report("➕ Adicionando alterações locais ao staging...")
+	report(i18n.T(language, "sync_stage"))
 	if _, err := r.run(ctx, "add", "-A"); err != nil {
 		return r.commandError("adicionar alterações", err)
 	}
@@ -110,34 +112,55 @@ func (r Repository) Sync(ctx context.Context, progress Progress) error {
 		return r.commandError("verificar alterações", err)
 	}
 	stashed := strings.TrimSpace(status) != ""
+	needsRestore := false
+	restoreStash := func() error {
+		report(i18n.T(language, "sync_restore"))
+		if _, err := r.run(context.WithoutCancel(ctx), "stash", "pop", "--index"); err != nil {
+			return r.commandError("restaurar alterações", err)
+		}
+		needsRestore = false
+		return nil
+	}
 	if stashed {
-		report("📦 Guardando alterações locais temporariamente...")
+		report(i18n.T(language, "sync_stash"))
 		if _, err := r.run(ctx, "stash", "push", "-u", "-m", "commit-ai-auto-stash"); err != nil {
 			return r.commandError("guardar alterações temporariamente", err)
 		}
+		needsRestore = true
+		// A synchronization failure or Ctrl+C must never leave a hidden stash
+		// behind. WithoutCancel lets this cleanup finish after the user cancels.
+		defer func() {
+			if !needsRestore {
+				return
+			}
+			if restoreErr := restoreStash(); restoreErr != nil {
+				if resultErr == nil {
+					resultErr = restoreErr
+				} else {
+					resultErr = fmt.Errorf("%w; %v", resultErr, restoreErr)
+				}
+			}
+		}()
 	}
 	branch, err := r.run(ctx, "rev-parse", "--abbrev-ref", "HEAD")
 	if err != nil {
 		return r.commandError("identificar branch atual", err)
 	}
 	branch = strings.TrimSpace(branch)
-	report(fmt.Sprintf("⬇️ Baixando atualizações de origin/%s...", branch))
+	report(i18n.T(language, "sync_pull", branch))
 	if _, err := r.run(ctx, "pull", "origin", branch, "--rebase"); err != nil {
 		if _, fallbackErr := r.run(ctx, "pull", "origin", branch); fallbackErr != nil {
-			if stashed {
-				report("📂 Restaurando alterações salvas...")
-				_, _ = r.run(ctx, "stash", "pop")
-			}
 			return fmt.Errorf("não foi possível sincronizar com origin/%s: %w", branch, fallbackErr)
 		}
 	}
 	if stashed {
-		report("📂 Restaurando alterações salvas...")
-		if _, err := r.run(ctx, "stash", "pop"); err != nil {
-			return r.commandError("restaurar alterações", err)
+		// The explicit restore preserves the familiar progress order on success.
+		// The deferred path above is reserved for errors and cancellations.
+		if err := restoreStash(); err != nil {
+			return err
 		}
 	}
-	report("➕ Preparando os arquivos para o commit...")
+	report(i18n.T(language, "sync_prepare"))
 	_, err = r.run(ctx, "add", "-A")
 	return r.commandError("adicionar alterações após sincronização", err)
 }
