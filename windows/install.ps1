@@ -19,94 +19,27 @@
 # Licensed under the MIT License
 
 #Requires -Version 5.1
+[CmdletBinding()]
+param(
+    [string]$Version = $(if ($env:COMMIT_AI_VERSION) { $env:COMMIT_AI_VERSION } else { "2.0.0" }),
+    [string]$InstallDir = $(if ($env:COMMIT_AI_INSTALL_DIR) { $env:COMMIT_AI_INSTALL_DIR } else { Join-Path $HOME "bin" })
+)
 
-# ===============================================
-# commit-ai Installer for Windows
-# ===============================================
-
-$ErrorActionPreference = 'Stop'
-$VERSION = "1.2.0"
-$SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
-$INSTALL_DIR = Join-Path $HOME "bin"
-$CONFIG_FILE = Join-Path $HOME ".commit-ai.conf"
-
-Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-Write-Host "  🤖 commit-ai v$VERSION - Windows Installer" -ForegroundColor White
-Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-Write-Host
-
-# Check dependencies
-Write-Host "📦 Checking dependencies..." -ForegroundColor Yellow
-$missing = @()
-foreach ($cmd in @('git', 'curl')) {
-    if (-not (Get-Command $cmd -ErrorAction SilentlyContinue)) {
-        $missing += $cmd
-    }
+$ErrorActionPreference = "Stop"
+if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+    throw "Git for Windows é necessário. Instale-o em https://git-scm.com/download/win"
 }
-
-if ($missing.Count -gt 0) {
-    Write-Host "❌ Missing dependencies: $($missing -join ', ')" -ForegroundColor Red
-    Write-Host
-    Write-Host "Install Git for Windows from: https://git-scm.com/download/win" -ForegroundColor Gray
-    exit 1
-}
-Write-Host "✅ All dependencies found" -ForegroundColor Green
-Write-Host
-
-# Create install directory
-if (-not (Test-Path $INSTALL_DIR)) {
-    Write-Host "📁 Creating directory: $INSTALL_DIR" -ForegroundColor Yellow
-    New-Item -ItemType Directory -Force -Path $INSTALL_DIR | Out-Null
-}
-
-# Copy scripts
-Write-Host "📥 Installing commit-ai to $INSTALL_DIR..." -ForegroundColor Yellow
-Copy-Item -Path (Join-Path $SCRIPT_DIR "commit-ai.ps1") -Destination $INSTALL_DIR -Force
-Copy-Item -Path (Join-Path $SCRIPT_DIR "commit-ai.bat") -Destination $INSTALL_DIR -Force
-Write-Host "✅ Scripts installed" -ForegroundColor Green
-Write-Host
-
-# Add to PATH
+$architecture = if ($env:PROCESSOR_ARCHITECTURE -match "ARM64") { "arm64" } else { "amd64" }
+$asset = "commit-ai-windows-$architecture.exe"
+$url = "https://github.com/jhowk14/commit-ai/releases/download/v$Version/$asset"
+New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
+$destination = Join-Path $InstallDir "commit-ai.exe"
+Write-Host "Baixando commit-ai v$Version..." -ForegroundColor Cyan
+Invoke-WebRequest -Uri $url -OutFile $destination
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
-if ($userPath -notlike "*$INSTALL_DIR*") {
-    Write-Host "🔧 Adding $INSTALL_DIR to PATH..." -ForegroundColor Yellow
-    [Environment]::SetEnvironmentVariable("Path", "$userPath;$INSTALL_DIR", "User")
-    $env:Path = "$env:Path;$INSTALL_DIR"
-    Write-Host "✅ Added to PATH (restart terminal to apply)" -ForegroundColor Green
-} else {
-    Write-Host "✅ Already in PATH" -ForegroundColor Green
+if ($userPath -notlike "*$InstallDir*") {
+    [Environment]::SetEnvironmentVariable("Path", "$userPath;$InstallDir", "User")
+    $env:Path = "$env:Path;$InstallDir"
 }
-Write-Host
-
-# Create PowerShell alias
-Write-Host "🔧 Setting up PowerShell alias..." -ForegroundColor Yellow
-
-# Ensure profile exists
-if (-not (Test-Path $PROFILE)) {
-    New-Item -ItemType File -Path $PROFILE -Force | Out-Null
-}
-
-$aliasLine = "Set-Alias -Name commit-ai -Value `"$INSTALL_DIR\commit-ai.ps1`""
-$profileContent = Get-Content $PROFILE -ErrorAction SilentlyContinue
-
-if ($profileContent -notcontains $aliasLine) {
-    Add-Content -Path $PROFILE -Value "`n# commit-ai alias"
-    Add-Content -Path $PROFILE -Value $aliasLine
-    Write-Host "✅ Alias added to PowerShell profile" -ForegroundColor Green
-} else {
-    Write-Host "✅ Alias already exists" -ForegroundColor Green
-}
-Write-Host
-
-# Run interactive setup
-Write-Host "🔧 Running initial configuration..." -ForegroundColor Yellow
-Write-Host
-
-& "$INSTALL_DIR\commit-ai.ps1" -Setup
-
-Write-Host
-Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-Write-Host "  ✅ Installation complete!" -ForegroundColor White
-Write-Host "  Run 'commit-ai' to generate commit messages" -ForegroundColor Gray
-Write-Host "  Run 'commit-ai -Setup' to reconfigure" -ForegroundColor Gray
-Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
+Write-Host "✅ commit-ai instalado em $destination" -ForegroundColor Green
+Write-Host "Abra um novo terminal e execute: commit-ai --setup" -ForegroundColor Gray

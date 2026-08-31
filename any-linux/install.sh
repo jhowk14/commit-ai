@@ -1,66 +1,44 @@
 #!/usr/bin/env bash
-# commit-ai
-# Copyright (c) 2026 Jonathan Henrique Perozi Lourenço (jhowk14)
-# Licensed under the MIT License
+# commit-ai installer — Linux and macOS
+set -euo pipefail
 
-set -e
+VERSION="${COMMIT_AI_VERSION:-2.0.0}"
+REPOSITORY="jhowk14/commit-ai"
+INSTALL_DIR="${COMMIT_AI_INSTALL_DIR:-/usr/local/bin}"
 
-# ===============================================
-# commit-ai Installer for Linux
-# ===============================================
+case "$(uname -s)" in
+  Linux) platform="linux" ;;
+  Darwin) platform="darwin" ;;
+  *) echo "❌ Sistema não suportado: $(uname -s)"; exit 1 ;;
+esac
+case "$(uname -m)" in
+  x86_64|amd64) architecture="amd64" ;;
+  aarch64|arm64) architecture="arm64" ;;
+  *) echo "❌ Arquitetura não suportada: $(uname -m)"; exit 1 ;;
+esac
 
-VERSION="1.2.0"
-INSTALL_DIR="/usr/local/bin"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="$HOME/.commit-ai.conf"
-
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  🤖 commit-ai v$VERSION - Linux Installer"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo
-
-# Check dependencies
-echo "📦 Checking dependencies..."
-MISSING=""
-for cmd in git jq curl; do
-  if ! command -v "$cmd" &> /dev/null; then
-    MISSING="$MISSING $cmd"
-  fi
-done
-
-if [ -n "$MISSING" ]; then
-  echo "❌ Missing dependencies:$MISSING"
-  echo
-  echo "Install them with:"
-  echo "  Ubuntu/Debian: sudo apt install$MISSING"
-  echo "  Fedora:        sudo dnf install$MISSING"
-  echo "  Arch:          sudo pacman -S$MISSING"
+if ! command -v git >/dev/null; then
+  echo "❌ Git é necessário. Instale-o e execute novamente."
   exit 1
 fi
-echo "✅ All dependencies found"
-echo
-
-# Install script
-echo "📥 Installing commit-ai to $INSTALL_DIR..."
-if [ -w "$INSTALL_DIR" ]; then
-  cp "$SCRIPT_DIR/commit-ai.sh" "$INSTALL_DIR/commit-ai"
-  chmod +x "$INSTALL_DIR/commit-ai"
-else
-  echo "⚠️  Requires sudo for system-wide installation"
-  sudo cp "$SCRIPT_DIR/commit-ai.sh" "$INSTALL_DIR/commit-ai"
-  sudo chmod +x "$INSTALL_DIR/commit-ai"
+if ! command -v curl >/dev/null; then
+  echo "❌ curl é necessário para baixar o binário."
+  exit 1
 fi
-echo "✅ Script installed to $INSTALL_DIR/commit-ai"
-echo
 
-# Run interactive setup
-echo "🔧 Running initial configuration..."
-echo
-"$INSTALL_DIR/commit-ai" --setup
+asset="commit-ai-${platform}-${architecture}"
+url="https://github.com/${REPOSITORY}/releases/download/v${VERSION}/${asset}"
+temporary_file="$(mktemp)"
+trap 'rm -f "$temporary_file"' EXIT
 
-echo
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  ✅ Installation complete!"
-echo "  Run 'commit-ai' to generate commit messages"
-echo "  Run 'commit-ai --setup' to reconfigure"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "📥 Baixando commit-ai v${VERSION} para ${platform}/${architecture}..."
+curl --fail --location --silent --show-error "$url" --output "$temporary_file"
+chmod +x "$temporary_file"
+if [[ -w "$INSTALL_DIR" ]]; then
+  install -m 0755 "$temporary_file" "$INSTALL_DIR/commit-ai"
+else
+  echo "🔐 Instalando em $INSTALL_DIR com sudo..."
+  sudo install -m 0755 "$temporary_file" "$INSTALL_DIR/commit-ai"
+fi
+echo "✅ commit-ai instalado: $($INSTALL_DIR/commit-ai --version)"
+echo "Execute 'commit-ai --setup' para configurar o provedor de IA."
